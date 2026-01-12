@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log"
-	"policy-backend/config"
-	"policy-backend/database"
-	"policy-backend/routes"
+"log"
+"policy-backend/config"
+"policy-backend/database"
+"policy-backend/router"
 
-	"github.com/labstack/echo/v4"
+"github.com/labstack/echo/v4"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	e := echo.New()
 
 	// 注册路由
-	routes.RegisterRoutes(e)
+	router.Init(e, database.DB)
 
 	// 启动服务器
 	if err := e.Start(":8080"); err != nil {

@@ -1,10 +1,10 @@
 package database
 
 import (
-	"policy-backend/models"
+"policy-backend/policy"
 
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+"gorm.io/driver/sqlite"
+"gorm.io/gorm"
 )
 
 var DB *gorm.DB
@@ -20,7 +20,7 @@ func InitDB(databaseURL string) error {
 	}
 
 	if err := DB.AutoMigrate(
-		&models.Policy{},
+&policy.Policy{},
 	); err != nil {
 		return err
 	}
