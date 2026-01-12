@@ -1,10 +1,11 @@
 package database
 
 import (
-"policy-backend/policy"
+	"policy-backend/policy"
+	"strings"
 
-"gorm.io/driver/sqlite"
-"gorm.io/gorm"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var DB *gorm.DB
@@ -12,7 +13,9 @@ var DB *gorm.DB
 func InitDB(databaseURL string) error {
 	var err error
 
-	dbPath := "policy.db"
+	// 移除 sqlite3:// 前缀
+	// TODO: 支持更多数据库 并做完善的处理
+	dbPath := strings.TrimPrefix(databaseURL, "sqlite3://")
 
 	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
@@ -20,7 +23,7 @@ func InitDB(databaseURL string) error {
 	}
 
 	if err := DB.AutoMigrate(
-&policy.Policy{},
+		&policy.Policy{},
 	); err != nil {
 		return err
 	}
