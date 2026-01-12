@@ -1,0 +1,2 @@
+database_url: sqlite3://policy.db
+server_address: :8080
