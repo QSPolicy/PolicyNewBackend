@@ -11,8 +11,10 @@ import (
 )
 
 type Config struct {
-	DatabaseURL   string `koanf:"database_url"`
-	ServerAddress string `koanf:"server_address"`
+	DatabaseURL      string `koanf:"database_url"`
+	ServerAddress    string `koanf:"server_address"`
+	JWTSecretKey     string `koanf:"jwt_secret_key"`
+	JWTTokenDuration int    `koanf:"jwt_token_duration"` // 单位：小时
 }
 
 var k = koanf.New(".")
@@ -21,6 +23,8 @@ func LoadConfig() *Config {
 	// 默认值
 	k.Set("database_url", "sqlite3://policy.db")
 	k.Set("server_address", ":8080")
+	k.Set("jwt_secret_key", "default_jwt_secret_key_change_in_production")
+	k.Set("jwt_token_duration", 24) // 默认24小时
 
 	// 从文件读取
 	if err := k.Load(file.Provider("config.yaml"), yaml.Parser()); err != nil {

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"policy-backend/auth"
 	"policy-backend/policy"
 	"strings"
 
@@ -24,6 +25,7 @@ func InitDB(databaseURL string) error {
 
 	if err := DB.AutoMigrate(
 		&policy.Policy{},
+		&auth.User{},
 	); err != nil {
 		return err
 	}

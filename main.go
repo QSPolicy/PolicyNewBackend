@@ -22,7 +22,7 @@ func main() {
 	e := echo.New()
 
 	// 注册路由
-	router.Init(e, database.DB)
+	router.Init(e, database.DB, cfg)
 
 	// 启动服务器
 	if err := e.Start(cfg.ServerAddress); err != nil {
