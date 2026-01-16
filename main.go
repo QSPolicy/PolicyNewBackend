@@ -14,7 +14,7 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// 初始化数据库连接
-	if err := database.InitDB(cfg.DatabaseURL); err != nil {
+	if err := database.InitDB(cfg); err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 

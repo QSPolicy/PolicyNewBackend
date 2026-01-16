@@ -15,6 +15,10 @@ type Config struct {
 	ServerAddress    string `koanf:"server_address"`
 	JWTSecretKey     string `koanf:"jwt_secret_key"`
 	JWTTokenDuration int    `koanf:"jwt_token_duration"` // 单位：小时
+
+	// MySQL连接池配置（仅MySQL时有效）
+	MySQLMaxIdleConns int `koanf:"mysql_max_idle_conns"`
+	MySQLMaxOpenConns int `koanf:"mysql_max_open_conns"`
 }
 
 var k = koanf.New(".")
@@ -24,7 +28,9 @@ func LoadConfig() *Config {
 	k.Set("database_url", "sqlite3://policy.db")
 	k.Set("server_address", ":8080")
 	k.Set("jwt_secret_key", "default_jwt_secret_key_change_in_production")
-	k.Set("jwt_token_duration", 24) // 默认24小时
+	k.Set("jwt_token_duration", 24)    // 默认24小时
+	k.Set("mysql_max_idle_conns", 10)  // MySQL连接池最大空闲连接数
+	k.Set("mysql_max_open_conns", 100) // MySQL连接池最大打开连接数
 
 	// 从文件读取
 	if err := k.Load(file.Provider("config.yaml"), yaml.Parser()); err != nil {
