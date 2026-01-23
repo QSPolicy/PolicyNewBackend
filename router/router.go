@@ -3,8 +3,9 @@ package router
 import (
 	"policy-backend/auth"
 	"policy-backend/config"
+	"policy-backend/intelligence"
 	"policy-backend/org"
-	"policy-backend/policy"
+	"policy-backend/user"
 	"policy-backend/utils"
 	"time"
 
@@ -38,10 +39,14 @@ func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 	))
 	auth.RegisterRoutes(api.Group("/auth"), authH)
 
-	// Policies 模块
-	policyH := policy.NewHandler(db)
-	policy.RegisterPoliciesRoutes(api.Group("/policies"), policyH)
-	policy.RegisterPolicyRoutes(api.Group("/policy"), policyH)
+	// User 模块
+	userH := user.NewHandler(db)
+	user.RegisterRoutes(api.Group("/users"), userH)
+
+	// intelligence 模块
+	intelligenceH := intelligence.NewHandler(db)
+	intelligence.RegisterPoliciesRoutes(api.Group("/policies"), intelligenceH)
+	intelligence.RegisterPolicyRoutes(api.Group("/policy"), intelligenceH)
 
 	// Org 模块
 	orgH := org.NewHandler(db)

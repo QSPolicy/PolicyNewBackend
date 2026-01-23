@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"policy-backend/user"
 
 	"github.com/labstack/echo/v4"
 )
@@ -11,15 +12,15 @@ type ctxKeyType string
 const ctxUserKey ctxKeyType = "auth_user"
 
 // GetUser 从 echo.Context 中读取已存放的用户
-func GetUser(c echo.Context) (*User, bool) {
+func GetUser(c echo.Context) (*user.User, bool) {
 	if v := c.Get("user"); v != nil {
-		if u, ok := v.(*User); ok {
+		if u, ok := v.(*user.User); ok {
 			return u, true
 		}
 	}
 	// 也尝试从 request context 中读取
 	if v := c.Request().Context().Value(ctxUserKey); v != nil {
-		if u, ok := v.(*User); ok {
+		if u, ok := v.(*user.User); ok {
 			return u, true
 		}
 	}
@@ -27,7 +28,7 @@ func GetUser(c echo.Context) (*User, bool) {
 }
 
 // MustGetUser 获取用户或返回错误
-func MustGetUser(c echo.Context) (*User, error) {
+func MustGetUser(c echo.Context) (*user.User, error) {
 	if u, ok := GetUser(c); ok {
 		return u, nil
 	}

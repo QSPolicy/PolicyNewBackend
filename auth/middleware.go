@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 	"net/http"
-
+	"policy-backend/user"
 	"policy-backend/utils"
 
 	"github.com/labstack/echo/v4"
@@ -38,8 +38,8 @@ func AuthMiddleware(db *gorm.DB, j *JWTUtil) echo.MiddlewareFunc {
 				return utils.Fail(c, http.StatusUnauthorized, "Invalid token")
 			}
 
-			var user User
-			if err := db.Where("username = ?", claims.Username).First(&user).Error; err != nil {
+			var u user.User
+			if err := db.Where("username = ?", claims.Username).First(&u).Error; err != nil {
 				if err == gorm.ErrRecordNotFound {
 					return utils.Fail(c, http.StatusUnauthorized, "User not found")
 				}
@@ -47,8 +47,8 @@ func AuthMiddleware(db *gorm.DB, j *JWTUtil) echo.MiddlewareFunc {
 			}
 
 			// 把 user 放到 echo.Context 和 request.Context
-			c.Set("user", &user)
-			ctx := context.WithValue(c.Request().Context(), ctxUserKey, &user)
+			c.Set("user", &u)
+			ctx := context.WithValue(c.Request().Context(), ctxUserKey, &u)
 			c.SetRequest(c.Request().WithContext(ctx))
 
 			return next(c)

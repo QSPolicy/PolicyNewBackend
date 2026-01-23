@@ -1,28 +1,19 @@
 package auth
 
 import (
-	"time"
+	"policy-backend/user"
 
 	"gorm.io/gorm"
 )
 
-type User struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	Email        string    `gorm:"not null;size:100" json:"email"`
-	Username     string    `gorm:"not null;unique;size:100" json:"username"`
-	PasswordHash string    `gorm:"not null;size:255" json:"-"`
-	Nickname     string    `gorm:"not null;size:100" json:"nickname"`
-	Organization string    `gorm:"size:100" json:"organization"`
-	Points       int       `gorm:"default:0" json:"points"`
-	Status       int       `gorm:"default:1" json:"status"` // 1=active 0=disabled
-	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`
-}
+// UserAlias 为auth模块提供用户模型的别名
+type UserAlias = user.User
 
-// BeforeCreate 在创建用户前设置默认值
-func (u *User) BeforeCreate(tx *gorm.DB) error {
-	if u.Status == 0 {
-		u.Status = 1 // 默认启用
+// getUserByUsername 从数据库获取用户
+func getUserByUsername(db *gorm.DB, username string) (*user.User, error) {
+	var u user.User
+	if err := db.Where("username = ?", username).First(&u).Error; err != nil {
+		return nil, err
 	}
-	return nil
+	return &u, nil
 }
