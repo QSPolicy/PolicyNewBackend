@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 
@@ -95,6 +96,17 @@ func validateCustom(fl validator.FieldLevel) bool {
 func GetValidator(c echo.Context) *Validator {
 	if validator, ok := c.Get("validator").(*Validator); ok {
 		return validator
+	}
+	return nil
+}
+// validateRequest 验证请求数据
+func ValidateRequest(c echo.Context, req interface{}) error {
+	validator := GetValidator(c)
+	if validator == nil {
+		return Error(c, http.StatusInternalServerError, "Validator not available")
+	}
+	if err := validator.ValidateStruct(req); err != nil {
+		return Fail(c, http.StatusBadRequest, err.Error())
 	}
 	return nil
 }
