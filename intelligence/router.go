@@ -1,4 +1,4 @@
-package policy
+package intelligence
 
 import (
 	"github.com/labstack/echo/v4"

@@ -1,4 +1,4 @@
-package policy
+package intelligence
 
 import (
 	"net/http"
@@ -18,7 +18,7 @@ func NewHandler(db *gorm.DB) *Handler {
 
 // CreatePolicy 创建新策略
 func (h *Handler) CreatePolicy(c echo.Context) error {
-	policy := new(Policy)
+	policy := new(Intelligence)
 	if err := c.Bind(policy); err != nil {
 		return utils.Error(c, http.StatusBadRequest, "Invalid request body")
 	}
@@ -33,7 +33,7 @@ func (h *Handler) CreatePolicy(c echo.Context) error {
 // GetPolicy 获取单个策略
 func (h *Handler) GetPolicy(c echo.Context) error {
 	id := c.Param("id")
-	var policy Policy
+	var policy Intelligence
 
 	if err := h.db.First(&policy, id).Error; err != nil {
 		return utils.Error(c, http.StatusNotFound, "Policy not found")
@@ -45,7 +45,7 @@ func (h *Handler) GetPolicy(c echo.Context) error {
 // UpdatePolicy 更新策略
 func (h *Handler) UpdatePolicy(c echo.Context) error {
 	id := c.Param("id")
-	var policy Policy
+	var policy Intelligence
 
 	// 查找现有策略
 	if err := h.db.First(&policy, id).Error; err != nil {
@@ -68,7 +68,7 @@ func (h *Handler) UpdatePolicy(c echo.Context) error {
 func (h *Handler) DeletePolicy(c echo.Context) error {
 	id := c.Param("id")
 
-	if err := h.db.Delete(&Policy{}, id).Error; err != nil {
+	if err := h.db.Delete(&Intelligence{}, id).Error; err != nil {
 		return utils.Error(c, http.StatusInternalServerError, "Failed to delete policy")
 	}
 
@@ -77,7 +77,7 @@ func (h *Handler) DeletePolicy(c echo.Context) error {
 
 // GetAllPolicies 获取所有策略
 func (h *Handler) GetAllPolicies(c echo.Context) error {
-	var policies []Policy
+	var policies []Intelligence
 
 	if err := h.db.Find(&policies).Error; err != nil {
 		return utils.Error(c, http.StatusInternalServerError, "Failed to get policies")
