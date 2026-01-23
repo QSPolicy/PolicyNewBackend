@@ -1,9 +1,10 @@
 package database
 
 import (
-	"policy-backend/auth"
 	"policy-backend/config"
-	"policy-backend/policy"
+	"policy-backend/intelligence"
+	"policy-backend/user"
+	"policy-backend/org"
 	"strings"
 
 	"gorm.io/driver/mysql"
@@ -48,8 +49,14 @@ func InitDB(cfg *config.Config) error {
 
 	// 自动迁移数据库表
 	if err := DB.AutoMigrate(
-		&policy.Policy{},
-		&auth.User{},
+		&intelligence.Intelligence{},
+		&intelligence.IntelligenceShared{},
+		&intelligence.Rating{},
+		&user.Team{},
+		&user.User{},
+		&user.TeamMember{},
+		&org.Agency{},
+		&org.Country{},
 	); err != nil {
 		return err
 	}
