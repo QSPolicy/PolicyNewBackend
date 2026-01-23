@@ -8,9 +8,12 @@ import (
 
 type User struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
+	Email        string    `gorm:"not null;size:100" json:"email"`
 	Username     string    `gorm:"not null;unique;size:100" json:"username"`
 	PasswordHash string    `gorm:"not null;size:255" json:"-"`
-	Nickname     string    `gorm:"size:100" json:"nickname"`
+	Nickname     string    `gorm:"not null;size:100" json:"nickname"`
+	Organization string    `gorm:"size:100" json:"organization"`
+	Points       int       `gorm:"default:0" json:"points"`
 	Status       int       `gorm:"default:1" json:"status"` // 1=active 0=disabled
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`
