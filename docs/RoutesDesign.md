@@ -21,10 +21,54 @@
 
 | 方法 | 路径 | 描述 | 关键参数/备注 |
 | --- | --- | --- | --- |
-| **GET** | `/api/v1/search/global` | **核心：全网智能检索** | `q`:关键词, `scope`:全网/库内, `agency_id`, `date_range`, `model` (basic/advanced/pro - 触发积分扣除) |
+| **GET** | `/api/v1/search/global` | **核心：全网智能检索** | `q`:关键词, `source`:全网/库内, `agency_id`, `date_range`, `model` (basic/advanced/pro - 触发积分扣除) |
+
+#### 参数详情设计
+
+前端根据用户开关状态，传递不同的参数组合：
+
+**公共参数（无论全网还是本地都需要）：**
+
+| 参数名 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `q` | string | 是 | 检索关键词 (Keywords) |
+| `source` | string | 是 | **核心开关**：`web` (全网/上网检索), `local` (本地数据库) |
+| `date_start` | date | 否 | 起始日期 |
+| `date_end` | date | 否 | 截止日期 |
+| `agency_id` | int | 否 | 筛选特定机构 |
+| `country_id` | int | 否 | 筛选特定国家 |
+
+**模式 A：当 `source=web` (全网检索) 时的附加参数：**
+
+> *此模式会触发积分扣除逻辑，并调用爬虫/外部API。*
+
+| 参数名 | 类型 | 说明 |
+| --- | --- | --- |
+| `model` | string | **模型分级**：`basic` (不消耗配额/基础), `advanced` (高级), `professional` (专业/强力LLM) |
+| `fetch_limit` | int | **数量限制**：单次抓取最大条数 (如 10, 20, 50) |
+| `auto_filter` | bool | 是否开启 AI 自动过滤无关信息 (默认为 true) |
+
+**模式 B：当 `source=local` (本地检索) 时的附加参数：**
+
+> *此模式仅查询 `intelligences` 表，速度快，不消耗配额。*
+
+| 参数名 | 类型 | 说明 |
+| --- | --- | --- |
+| `scope` | string | **检索范围**：<br>
+
+<br>`all` (我有权限查看的所有情报，默认)<br>
+
+<br>`mine` (仅限我收藏/入库的)<br>
+
+<br>`team` (仅限团队库中的) |
+| `has_pdf` | bool | 是否仅看有 PDF 原文的情报 |
+| `sort` | string | 排序方式：`relevance` (相关度), `date_desc` (最新发布), `rating_desc` (高分优先) |
+
+---
+
 | **GET** | `/api/v1/search/check-duplication` | **查重检测** | `urls`: [Array] 或 `titles`: [Array]。返回库中已存在的 ID (用于前端标记绿色/黄色) |
-| **GET** | `/api/v1/metadata/countries` | 获取国家列表 | 用于筛选下拉框 |
-| **GET** | `/api/v1/metadata/agencies` | 获取机构列表 | `country_id`: 筛选特定国家的机构 |
+| **GET** | `/api/v1/org/countries` | 获取国家列表 | 用于筛选下拉框 |
+| **GET** | `/api/v1/org/agencies` | 获取机构列表 | `country_id`: 筛选特定国家的机构 |
 
 ---
 
