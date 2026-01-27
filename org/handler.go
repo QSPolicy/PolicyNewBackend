@@ -16,27 +16,30 @@ func NewHandler(db *gorm.DB) *Handler {
 	return &Handler{db: db}
 }
 
-// SomeOrgs 获取部分组织列表
-func (h *Handler) SomeOrgs(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
+// GetCountries 获取国家列表
+func (h *Handler) GetCountries(c echo.Context) error {
+	var countries []Country
+	if err := h.db.Find(&countries).Error; err != nil {
+		return utils.Fail(c, http.StatusInternalServerError, "Failed to fetch countries")
+	}
+
+	return utils.Success(c, countries)
 }
 
-// SomeOrgsMySearch 获取部分组织列表（我的搜索）
-func (h *Handler) SomeOrgsMySearch(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
+// GetAgencies 获取机构列表
+func (h *Handler) GetAgencies(c echo.Context) error {
+	countryID := c.QueryParam("country_id")
 
-// GetPolicyByOrgIds 根据组织ID获取政策列表
-func (h *Handler) GetPolicyByOrgIds(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
+	query := h.db.Model(&Agency{}).Preload("Country")
 
-// GetPolicyWithRating 根据组织ID获取带评分的政策列表
-func (h *Handler) GetPolicyWithRating(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
+	if countryID != "" {
+		query = query.Where("country_id = ?", countryID)
+	}
 
-// GetMyPolicy 根据组织ID获取我的搜索政策列表
-func (h *Handler) GetMyPolicy(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
+	var agencies []Agency
+	if err := query.Find(&agencies).Error; err != nil {
+		return utils.Fail(c, http.StatusInternalServerError, "Failed to fetch agencies")
+	}
+
+	return utils.Success(c, agencies)
 }

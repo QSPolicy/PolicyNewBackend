@@ -65,5 +65,10 @@ func InitDB(cfg *config.Config) error {
 		return err
 	}
 
+	// 初始化样例数据
+	if err := org.SeedData(DB); err != nil {
+		return err
+	}
+
 	return nil
 }
