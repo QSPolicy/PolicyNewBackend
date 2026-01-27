@@ -41,11 +41,8 @@ func SeedData(db *gorm.DB) error {
 	}
 
 	for _, country := range countries {
-		var existingCountry Country
-		if err := db.Where("code = ?", country.Code).First(&existingCountry).Error; err == gorm.ErrRecordNotFound {
-			if err := db.Create(&country).Error; err != nil {
-				return err
-			}
+		if err := db.Where(Country{Code: country.Code}).Attrs(Country{Name: country.Name}).FirstOrCreate(&country).Error; err != nil {
+			return err
 		}
 	}
 
@@ -66,11 +63,8 @@ func SeedData(db *gorm.DB) error {
 	}
 
 	for _, agency := range agencies {
-		var existingAgency Agency
-		if err := db.Where("name = ? AND country_id = ?", agency.Name, agency.CountryID).First(&existingAgency).Error; err == gorm.ErrRecordNotFound {
-			if err := db.Create(&agency).Error; err != nil {
-				return err
-			}
+		if err := db.Where(Agency{Name: agency.Name, CountryID: agency.CountryID}).FirstOrCreate(&agency).Error; err != nil {
+			return err
 		}
 	}
 
