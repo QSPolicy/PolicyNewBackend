@@ -3,8 +3,9 @@ package database
 import (
 	"policy-backend/config"
 	"policy-backend/intelligence"
-	"policy-backend/user"
 	"policy-backend/org"
+	"policy-backend/search"
+	"policy-backend/user"
 	"strings"
 
 	"gorm.io/driver/mysql"
@@ -56,6 +57,8 @@ func InitDB(cfg *config.Config) error {
 		&user.User{},
 		&user.TeamMember{},
 		&user.RefreshToken{},
+		&user.PointsTransaction{},
+		&search.SearchHistory{},
 		&org.Agency{},
 		&org.Country{},
 	); err != nil {

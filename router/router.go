@@ -6,6 +6,7 @@ import (
 	"policy-backend/intelligence"
 	custommiddleware "policy-backend/middleware"
 	"policy-backend/org"
+	"policy-backend/search"
 	"policy-backend/user"
 	"policy-backend/utils"
 	"time"
@@ -52,6 +53,12 @@ func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 	userGroup := api.Group("/users")
 	userGroup.Use(authMiddleware)
 	user.RegisterRoutes(userGroup, userH)
+
+	// Search 模块（需要认证）
+	searchH := search.NewHandler(db)
+	searchGroup := api.Group("/search")
+	searchGroup.Use(authMiddleware)
+	search.RegisterRoutes(searchGroup, searchH)
 
 	// intelligence 模块（需要认证）
 	intelligenceH := intelligence.NewHandler(db)
