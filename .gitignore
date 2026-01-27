@@ -1,2 +1,4 @@
 *.db
 /policy-backend
+*.exe
+/debug
