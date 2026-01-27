@@ -61,14 +61,14 @@ func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 	search.RegisterRoutes(searchGroup, searchH)
 
 	// intelligence 模块（需要认证）
-	intelligenceH := intelligence.NewHandler(db)
-	policiesGroup := api.Group("/policies")
-	policiesGroup.Use(authMiddleware)
-	intelligence.RegisterPoliciesRoutes(policiesGroup, intelligenceH)
+	// 使用依赖注入模式
+	intelligenceSvc := intelligence.NewService(db)
+	intelligenceH := intelligence.NewHandler(intelligenceSvc)
 
-	policyGroup := api.Group("/policy")
-	policyGroup.Use(authMiddleware)
-	intelligence.RegisterPolicyRoutes(policyGroup, intelligenceH)
+	// 注册 /intelligence 路由组
+	intelligenceGroup := api.Group("/intelligence")
+	intelligenceGroup.Use(authMiddleware)
+	intelligence.RegisterRoutes(intelligenceGroup, intelligenceH)
 
 	// Org 模块（需要认证）
 	orgH := org.NewHandler(db)

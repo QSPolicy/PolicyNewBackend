@@ -16,7 +16,14 @@ type Intelligence struct {
 	OriginalURL   string    `json:"original_url" gorm:"type:text"`
 	ContributorID uint      `json:"contributor_id" gorm:"not null;index"`
 	PublishDate   time.Time `json:"publish_date"`
+	Status        string    `json:"status" gorm:"type:varchar(20);default:'temporary'"` // temporary: 临时, official: 正式
 }
+
+// 常量定义状态
+const (
+	StatusTemporary = "temporary"
+	StatusOfficial  = "official"
+)
 
 // TableName 指定表名
 func (Intelligence) TableName() string {
@@ -26,10 +33,17 @@ func (Intelligence) TableName() string {
 // IntelligenceShared 情报共享记录
 type IntelligenceShared struct {
 	gorm.Model
-	IntelligenceID uint `json:"intelligence_id" gorm:"not null;index;uniqueIndex:idx_shared"`
-	TargetUserID   uint `json:"target_user_id" gorm:"not null;index;uniqueIndex:idx_shared"`
-	SharedAt       time.Time `json:"shared_at" gorm:"autoCreateTime"`
+	IntelligenceID uint   `json:"intelligence_id" gorm:"not null;index;uniqueIndex:idx_shared"`
+	TargetUserID   uint   `json:"target_user_id" gorm:"index;uniqueIndex:idx_shared"` // 如果分享给个人
+	TargetOrgID    uint   `json:"target_org_id" gorm:"index;uniqueIndex:idx_shared"`  // 如果分享给组织
+	SharedType     string `json:"shared_type" gorm:"type:varchar(20);not null"`       // user 或 org
 }
+
+// 常量定义分享类型
+const (
+	ShareTypeUser = "user"
+	ShareTypeOrg  = "org"
+)
 
 // TableName 指定表名
 func (IntelligenceShared) TableName() string {

@@ -3,125 +3,133 @@ package intelligence
 import (
 	"net/http"
 	"policy-backend/utils"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 )
 
 type Handler struct {
-	db *gorm.DB
+	svc *Service
 }
 
-func NewHandler(db *gorm.DB) *Handler {
-	return &Handler{db: db}
+func NewHandler(svc *Service) *Handler {
+	return &Handler{svc: svc}
 }
 
-// CreatePolicy 创建新策略
-func (h *Handler) CreatePolicy(c echo.Context) error {
-	policy := new(Intelligence)
-	if err := c.Bind(policy); err != nil {
+// CreateIntelligence 创建新情报
+func (h *Handler) CreateIntelligence(c echo.Context) error {
+	intelligence := new(Intelligence)
+	if err := c.Bind(intelligence); err != nil {
 		return utils.Error(c, http.StatusBadRequest, "Invalid request body")
 	}
 
-	if err := h.db.Create(policy).Error; err != nil {
-		return utils.Error(c, http.StatusInternalServerError, "Failed to create policy")
+	// 这里的 AgencyID 和 ContributorID 可能需要从 JWT Token 中获取
+	// 假设中间件已经将 userID 放入 context
+	// userID := c.Get("user_id").(uint)
+	// intelligence.ContributorID = userID
+
+	if err := h.svc.CreateIntelligence(intelligence); err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Failed to create intelligence")
 	}
 
-	return utils.Success(c, policy)
+	return utils.Success(c, intelligence)
 }
 
-// GetPolicy 获取单个策略
-func (h *Handler) GetPolicy(c echo.Context) error {
-	id := c.Param("id")
-	var policy Intelligence
-
-	if err := h.db.First(&policy, id).Error; err != nil {
-		return utils.Error(c, http.StatusNotFound, "Policy not found")
+// GetIntelligenceDetail 获取情报详情（含评分）
+func (h *Handler) GetIntelligenceDetail(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return utils.Error(c, http.StatusBadRequest, "Invalid ID")
 	}
 
-	return utils.Success(c, policy)
+	// 获取当前用户ID (待完善：从token获取)
+	// currently hardcoded or assumed to be 0 if not logged in
+	userID := uint(0)
+
+	detail, err := h.svc.GetIntelligenceDetail(uint(id), userID)
+	if err != nil {
+		return utils.Error(c, http.StatusNotFound, "Intelligence not found")
+	}
+
+	return utils.Success(c, detail)
 }
 
-// UpdatePolicy 更新策略
-func (h *Handler) UpdatePolicy(c echo.Context) error {
-	id := c.Param("id")
-	var policy Intelligence
+// ListIntelligences 获取情报列表
+func (h *Handler) ListIntelligences(c echo.Context) error {
+	page, _ := strconv.Atoi(c.QueryParam("page"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(c.QueryParam("page_size"))
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	keyword := c.QueryParam("keyword")
 
-	// 查找现有策略
-	if err := h.db.First(&policy, id).Error; err != nil {
-		return utils.Error(c, http.StatusNotFound, "Policy not found")
+	data, total, err := h.svc.ListIntelligences(page, pageSize, keyword)
+	if err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Failed to fetch list")
 	}
 
-	// 绑定更新数据
-	if err := c.Bind(&policy); err != nil {
-		return utils.Error(c, http.StatusBadRequest, "Invalid request body")
-	}
-
-	if err := h.db.Save(&policy).Error; err != nil {
-		return utils.Error(c, http.StatusInternalServerError, "Failed to update policy")
-	}
-
-	return utils.Success(c, policy)
+	return utils.Success(c, map[string]interface{}{
+		"list":  data,
+		"total": total,
+	})
 }
 
-// DeletePolicy 删除策略
-func (h *Handler) DeletePolicy(c echo.Context) error {
-	id := c.Param("id")
+// DeleteIntelligence 删除情报
+func (h *Handler) DeleteIntelligence(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return utils.Error(c, http.StatusBadRequest, "Invalid ID")
+	}
 
-	if err := h.db.Delete(&Intelligence{}, id).Error; err != nil {
-		return utils.Error(c, http.StatusInternalServerError, "Failed to delete policy")
+	if err := h.svc.DeleteIntelligence(uint(id)); err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Failed to delete")
 	}
 
 	return utils.Success(c, nil)
 }
 
-// GetAllPolicies 获取所有策略
-func (h *Handler) GetAllPolicies(c echo.Context) error {
-	var policies []Intelligence
+// RateIntelligence 评分
+type RatingRequest struct {
+	Score int `json:"score"`
+}
 
-	if err := h.db.Find(&policies).Error; err != nil {
-		return utils.Error(c, http.StatusInternalServerError, "Failed to get policies")
+func (h *Handler) RateIntelligence(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return utils.Error(c, http.StatusBadRequest, "Invalid ID")
 	}
 
-	return utils.Success(c, policies)
+	var req RatingRequest
+	if err := c.Bind(&req); err != nil {
+		return utils.Error(c, http.StatusBadRequest, "Invalid body")
+	}
+
+	// TODO: Get userID from context
+	userID := uint(1)
+
+	if err := h.svc.RateIntelligence(uint(id), userID, req.Score); err != nil {
+		return utils.Error(c, http.StatusBadRequest, err.Error())
+	}
+
+	return utils.Success(c, nil)
 }
 
-// SearchPolicy 搜索政策
-func (h *Handler) SearchPolicy(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
+// ShareIntelligence 分享情报
+func (h *Handler) ShareIntelligence(c echo.Context) error {
+	var req ShareRequest
+	if err := c.Bind(&req); err != nil {
+		return utils.Error(c, http.StatusBadRequest, "Invalid body")
+	}
 
-// GetPolicyDetail 获取政策详情
-func (h *Handler) GetPolicyDetail(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
+	if err := h.svc.ShareIntelligence(req); err != nil {
+		return utils.Error(c, http.StatusInternalServerError, err.Error())
+	}
 
-// OrgStats 获取组织统计信息
-func (h *Handler) OrgStats(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
-
-// Home 获取首页数据
-func (h *Handler) Home(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
-
-// PagePolicy 分页获取政策
-func (h *Handler) PagePolicy(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
-
-// ExportCsv 导出CSV
-func (h *Handler) ExportCsv(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
-
-// ManualIngest 手动导入政策
-func (h *Handler) ManualIngest(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
-}
-
-// DeleteMyDetail 删除我的详情
-func (h *Handler) DeleteMyDetail(c echo.Context) error {
-	return utils.Fail(c, http.StatusNotImplemented, "Not implemented yet")
+	return utils.Success(c, nil)
 }
