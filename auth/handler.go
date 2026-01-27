@@ -47,11 +47,11 @@ type MessageResponse struct {
 // Handler 认证处理器
 type Handler struct {
 	db      *gorm.DB
-	jwtUtil *JWTUtil
+	jwtUtil *utils.JWTUtil
 }
 
 // NewHandler 创建新的认证处理器
-func NewHandler(db *gorm.DB, jwtUtil *JWTUtil) *Handler {
+func NewHandler(db *gorm.DB, jwtUtil *utils.JWTUtil) *Handler {
 	return &Handler{
 		db:      db,
 		jwtUtil: jwtUtil,
@@ -141,7 +141,7 @@ func (h *Handler) getTokenFromContext(c echo.Context) string {
 }
 
 // getTokenClaims 获取token中的声明信息
-func (h *Handler) getTokenClaims(c echo.Context) (*JWTClaims, error) {
+func (h *Handler) getTokenClaims(c echo.Context) (*utils.JWTClaims, error) {
 	token := h.getTokenFromContext(c)
 	if token == "" {
 		return nil, utils.Fail(c, http.StatusUnauthorized, "Missing token")

@@ -1,4 +1,4 @@
-package auth
+package middleware
 
 import (
 	"context"
@@ -10,8 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
+type ctxKeyType string
+
+const ctxUserKey ctxKeyType = "auth_user"
+
 // AuthMiddleware 校验 JWT 并把用户信息放到 request context 与 echo.Context
-func AuthMiddleware(db *gorm.DB, j *JWTUtil) echo.MiddlewareFunc {
+func AuthMiddleware(db *gorm.DB, jwtUtil *utils.JWTUtil) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// 从 cookie 或 Authorization header 中取 token
@@ -33,7 +37,7 @@ func AuthMiddleware(db *gorm.DB, j *JWTUtil) echo.MiddlewareFunc {
 				return utils.Fail(c, http.StatusUnauthorized, "Missing token")
 			}
 
-			claims, err := j.ParseToken(token)
+			claims, err := jwtUtil.ParseToken(token)
 			if err != nil {
 				return utils.Fail(c, http.StatusUnauthorized, "Invalid token")
 			}
