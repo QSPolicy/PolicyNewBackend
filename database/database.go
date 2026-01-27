@@ -55,6 +55,7 @@ func InitDB(cfg *config.Config) error {
 		&user.Team{},
 		&user.User{},
 		&user.TeamMember{},
+		&user.RefreshToken{},
 		&org.Agency{},
 		&org.Country{},
 	); err != nil {

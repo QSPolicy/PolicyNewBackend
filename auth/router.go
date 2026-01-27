@@ -5,7 +5,8 @@ import (
 )
 
 func RegisterRoutes(g *echo.Group, h *Handler) {
-	g.POST("/login", h.Login)    // 用户登录
-	g.GET("/session", h.Session) // 检查会话状态
-	g.POST("/logout", h.Logout)  // 用户登出
+	g.POST("/login", h.Login)       // 用户登录
+	g.POST("/refresh", h.Refresh)   // 刷新 Access Token
+	g.GET("/session", h.Session)    // 检查会话状态
+	g.POST("/logout", h.Logout)     // 用户登出
 }

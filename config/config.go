@@ -11,10 +11,11 @@ import (
 )
 
 type Config struct {
-	DatabaseURL      string `koanf:"database_url"`
-	ServerAddress    string `koanf:"server_address"`
-	JWTSecretKey     string `koanf:"jwt_secret_key"`
-	JWTTokenDuration int    `koanf:"jwt_token_duration"` // 单位：小时
+	DatabaseURL             string `koanf:"database_url"`
+	ServerAddress           string `koanf:"server_address"`
+	JWTSecretKey            string `koanf:"jwt_secret_key"`
+	JWTAccessTokenDuration  int    `koanf:"jwt_access_token_duration"`  // Access Token 有效期（分钟）
+	JWTRefreshTokenDuration int    `koanf:"jwt_refresh_token_duration"` // Refresh Token 有效期（天）
 
 	// MySQL连接池配置（仅MySQL时有效）
 	MySQLMaxIdleConns int `koanf:"mysql_max_idle_conns"`
@@ -28,9 +29,10 @@ func LoadConfig() *Config {
 	k.Set("database_url", "sqlite3://policy.db")
 	k.Set("server_address", ":8080")
 	k.Set("jwt_secret_key", "default_jwt_secret_key_change_in_production")
-	k.Set("jwt_token_duration", 24)    // 默认24小时
-	k.Set("mysql_max_idle_conns", 10)  // MySQL连接池最大空闲连接数
-	k.Set("mysql_max_open_conns", 100) // MySQL连接池最大打开连接数
+	k.Set("jwt_access_token_duration", 60) // Access Token 默认60分钟
+	k.Set("jwt_refresh_token_duration", 7) // Refresh Token 默认7天
+	k.Set("mysql_max_idle_conns", 10)      // MySQL连接池最大空闲连接数
+	k.Set("mysql_max_open_conns", 100)     // MySQL连接池最大打开连接数
 
 	// 从文件读取
 	if err := k.Load(file.Provider("config.yaml"), yaml.Parser()); err != nil {

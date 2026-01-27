@@ -2,8 +2,10 @@ package auth
 
 import (
 	"net/http"
+	"policy-backend/user"
 	"policy-backend/utils"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -12,10 +14,12 @@ import (
 
 // 常量定义
 const (
-	cookieName   = "jwt"
-	cookiePath   = "/"
-	cookieMaxAge = 3600 * 24 // 24小时
-	userStatusOK = "active"
+	cookieName         = "jwt"
+	refreshCookieName  = "refresh_token"
+	cookiePath         = "/"
+	accessTokenMaxAge  = 3600 * 24     // 24小时（实际以配置为准）
+	refreshTokenMaxAge = 3600 * 24 * 7 // 7天
+	userStatusOK       = "active"
 )
 
 // 请求结构体
@@ -26,11 +30,17 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+// RefreshRequest 刷新Token请求结构体
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 // 响应结构体
 
-// AuthResponse 认证响应结构体
+// AuthResponse 认证响应结构体（双Token）
 type AuthResponse struct {
-	Token string `json:"token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // SessionResponse 会话响应结构体
@@ -46,15 +56,19 @@ type MessageResponse struct {
 
 // Handler 认证处理器
 type Handler struct {
-	db      *gorm.DB
-	jwtUtil *utils.JWTUtil
+	db                   *gorm.DB
+	jwtUtil              *utils.JWTUtil
+	refreshTokenService  *user.RefreshTokenService
+	refreshTokenDuration time.Duration
 }
 
 // NewHandler 创建新的认证处理器
-func NewHandler(db *gorm.DB, jwtUtil *utils.JWTUtil) *Handler {
+func NewHandler(db *gorm.DB, jwtUtil *utils.JWTUtil, refreshTokenDuration time.Duration) *Handler {
 	return &Handler{
-		db:      db,
-		jwtUtil: jwtUtil,
+		db:                   db,
+		jwtUtil:              jwtUtil,
+		refreshTokenService:  user.NewRefreshTokenService(db),
+		refreshTokenDuration: refreshTokenDuration,
 	}
 }
 
@@ -88,16 +102,108 @@ func (h *Handler) Login(c echo.Context) error {
 		return utils.Fail(c, http.StatusForbidden, "Account disabled")
 	}
 
-	// 生成JWT令牌
-	token, err := h.jwtUtil.GenerateToken(user.Username)
+	// 生成 Access Token
+	accessToken, err := h.jwtUtil.GenerateAccessToken(user.Username)
 	if err != nil {
-		return utils.Error(c, http.StatusInternalServerError, "Token generation failed")
+		return utils.Error(c, http.StatusInternalServerError, "Access token generation failed")
 	}
 
-	// 设置Cookie
-	h.setAuthCookie(c, token)
+	// 生成 Refresh Token
+	refreshToken, err := h.jwtUtil.GenerateRefreshToken(user.Username, h.refreshTokenDuration)
+	if err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Refresh token generation failed")
+	}
 
-	return utils.Success(c, AuthResponse{Token: token})
+	// 保存 Refresh Token 到数据库
+	deviceInfo := c.Request().UserAgent()
+	if _, err := h.refreshTokenService.Create(user.ID, refreshToken, h.refreshTokenDuration, deviceInfo); err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Failed to save refresh token")
+	}
+
+	// 设置 Access Token Cookie
+	h.setAuthCookie(c, accessToken)
+
+	// 设置 Refresh Token Cookie（HttpOnly，安全）
+	h.setRefreshCookie(c, refreshToken)
+
+	return utils.Success(c, AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	})
+}
+
+// Refresh 刷新 Access Token
+func (h *Handler) Refresh(c echo.Context) error {
+	// 从 Cookie 或请求体中获取 Refresh Token
+	refreshToken := ""
+
+	// 尝试从 Cookie 获取
+	if cookie, err := c.Cookie(refreshCookieName); err == nil && cookie.Value != "" {
+		refreshToken = cookie.Value
+	}
+
+	// 如果 Cookie 中没有，尝试从请求体获取
+	if refreshToken == "" {
+		var req RefreshRequest
+		if err := c.Bind(&req); err == nil && req.RefreshToken != "" {
+			refreshToken = req.RefreshToken
+		}
+	}
+
+	if refreshToken == "" {
+		return utils.Fail(c, http.StatusBadRequest, "Refresh token is required")
+	}
+
+	// 验证 Refresh Token 的签名
+	_, err := h.jwtUtil.ParseRefreshToken(refreshToken)
+	if err != nil {
+		return utils.Fail(c, http.StatusUnauthorized, "Invalid refresh token")
+	}
+
+	// 检查数据库中的 Refresh Token 状态
+	rtRecord, err := h.refreshTokenService.Validate(refreshToken)
+	if err != nil {
+		return utils.Fail(c, http.StatusUnauthorized, "Refresh token is invalid or expired")
+	}
+
+	// 获取用户信息
+	var u user.User
+	if err := h.db.Where("id = ?", rtRecord.UserID).First(&u).Error; err != nil {
+		return utils.Fail(c, http.StatusUnauthorized, "User not found")
+	}
+
+	// 检查用户状态
+	if u.Status != userStatusOK {
+		return utils.Fail(c, http.StatusForbidden, "Account disabled")
+	}
+
+	// 生成新的 Access Token
+	newAccessToken, err := h.jwtUtil.GenerateAccessToken(u.Username)
+	if err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Failed to generate access token")
+	}
+
+	// 更新 Access Token Cookie
+	h.setAuthCookie(c, newAccessToken)
+
+	return utils.Success(c, AuthResponse{
+		AccessToken:  newAccessToken,
+		RefreshToken: refreshToken, // Refresh Token 不变
+	})
+}
+
+// Logout 用户登出
+func (h *Handler) Logout(c echo.Context) error {
+	// 撤销 Refresh Token
+	if refreshToken := h.getRefreshTokenFromContext(c); refreshToken != "" {
+		h.refreshTokenService.Revoke(refreshToken)
+	}
+
+	// 清除 Cookies
+	h.clearAuthCookie(c)
+	h.clearRefreshCookie(c)
+
+	return utils.Success(c, MessageResponse{Message: "logged out"})
 }
 
 // Session 检查会话状态
@@ -111,12 +217,6 @@ func (h *Handler) Session(c echo.Context) error {
 		Active:   true,
 		Username: claims.Username,
 	})
-}
-
-// Logout 用户登出
-func (h *Handler) Logout(c echo.Context) error {
-	h.clearAuthCookie(c)
-	return utils.Success(c, MessageResponse{Message: "logged out"})
 }
 
 // getTokenFromContext 从 cookie 或 Authorization header 中获取 token
@@ -163,7 +263,7 @@ func (h *Handler) setAuthCookie(c echo.Context, token string) {
 		Path:     cookiePath,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   cookieMaxAge,
+		MaxAge:   accessTokenMaxAge,
 	})
 }
 
@@ -177,4 +277,37 @@ func (h *Handler) clearAuthCookie(c echo.Context) {
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
+}
+
+// setRefreshCookie 设置 Refresh Token Cookie
+func (h *Handler) setRefreshCookie(c echo.Context, token string) {
+	c.SetCookie(&http.Cookie{
+		Name:     refreshCookieName,
+		Value:    token,
+		Path:     cookiePath,
+		HttpOnly: true,
+		Secure:   false, // 生产环境建议设为 true（需要HTTPS）
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   refreshTokenMaxAge,
+	})
+}
+
+// clearRefreshCookie 清除 Refresh Token Cookie
+func (h *Handler) clearRefreshCookie(c echo.Context) {
+	c.SetCookie(&http.Cookie{
+		Name:     refreshCookieName,
+		Value:    "",
+		Path:     cookiePath,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+}
+
+// getRefreshTokenFromContext 从 Cookie 中获取 Refresh Token
+func (h *Handler) getRefreshTokenFromContext(c echo.Context) string {
+	if cookie, err := c.Cookie(refreshCookieName); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	return ""
 }

@@ -34,12 +34,13 @@ func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 	// 3. 初始化JWT工具
 	jwtUtil := utils.NewJWTUtil(
 		cfg.JWTSecretKey,
-		time.Duration(cfg.JWTTokenDuration)*time.Hour,
+		time.Duration(cfg.JWTAccessTokenDuration)*time.Minute,
 	)
 
 	// 4. 初始化各模块并注册
 	// Auth 模块
-	authH := auth.NewHandler(db, jwtUtil)
+	refreshTokenDuration := time.Duration(cfg.JWTRefreshTokenDuration) * 24 * time.Hour
+	authH := auth.NewHandler(db, jwtUtil, refreshTokenDuration)
 	auth.RegisterRoutes(api.Group("/auth"), authH)
 
 	// User 模块

@@ -9,13 +9,23 @@ import (
 
 var (
 	// 错误定义
-	ErrInvalidToken = errors.New("Invalid token")
-	ErrExpiredToken = errors.New("Token expired")
+	ErrInvalidToken     = errors.New("Invalid token")
+	ErrExpiredToken     = errors.New("Token expired")
+	ErrInvalidTokenType = errors.New("Invalid token type")
+)
+
+// TokenType 令牌类型
+type TokenType string
+
+const (
+	TokenTypeAccess  TokenType = "access"
+	TokenTypeRefresh TokenType = "refresh"
 )
 
 // JWTClaims 定义JWT声明结构
 type JWTClaims struct {
-	Username string `json:"username"`
+	Username string    `json:"username"`
+	Type     TokenType `json:"type"`
 	jwt.RegisteredClaims
 }
 
@@ -33,12 +43,29 @@ func NewJWTUtil(secretKey string, tokenDuration time.Duration) *JWTUtil {
 	}
 }
 
-// GenerateToken 生成JWT令牌
-func (j *JWTUtil) GenerateToken(username string) (string, error) {
+// GenerateAccessToken 生成 Access Token
+func (j *JWTUtil) GenerateAccessToken(username string) (string, error) {
 	claims := JWTClaims{
 		Username: username,
+		Type:     TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.TokenDuration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(j.SecretKey))
+}
+
+// GenerateRefreshToken 生成 Refresh Token
+func (j *JWTUtil) GenerateRefreshToken(username string, duration time.Duration) (string, error) {
+	claims := JWTClaims{
+		Username: username,
+		Type:     TokenTypeRefresh,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 		},
@@ -70,4 +97,32 @@ func (j *JWTUtil) ParseToken(tokenString string) (*JWTClaims, error) {
 	}
 
 	return nil, ErrInvalidToken
+}
+
+// ParseAccessToken 解析并验证 Access Token
+func (j *JWTUtil) ParseAccessToken(tokenString string) (*JWTClaims, error) {
+	claims, err := j.ParseToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	if claims.Type != TokenTypeAccess {
+		return nil, ErrInvalidTokenType
+	}
+
+	return claims, nil
+}
+
+// ParseRefreshToken 解析并验证 Refresh Token
+func (j *JWTUtil) ParseRefreshToken(tokenString string) (*JWTClaims, error) {
+	claims, err := j.ParseToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	if claims.Type != TokenTypeRefresh {
+		return nil, ErrInvalidTokenType
+	}
+
+	return claims, nil
 }
