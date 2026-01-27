@@ -13,16 +13,23 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"gorm.io/gorm"
 )
 
 func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 	// 1. 统一前缀
 	api := e.Group("/api")
-	api.Use(middleware.RequestLogger())
 
-	// 2. 注册验证器到Echo
+	// 2. 添加审计日志中间件
+	auditConfig := &custommiddleware.AuditConfig{
+		EnableJSON:   false,
+		LogLevel:     "info",
+		LogFile:      "",
+		ExcludePaths: []string{"/api/auth/login", "/api/auth/register"},
+	}
+	api.Use(custommiddleware.AuditMiddleware(auditConfig))
+
+	// 4. 注册验证器到Echo
 	validator := utils.NewValidator()
 	e.Validator = validator
 
@@ -34,16 +41,16 @@ func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 		}
 	})
 
-	// 3. 初始化JWT工具
+	// 5. 初始化JWT工具
 	jwtUtil := utils.NewJWTUtil(
 		cfg.JWTSecretKey,
 		time.Duration(cfg.JWTAccessTokenDuration)*time.Minute,
 	)
 
-	// 4. 初始化认证中间件
+	// 6. 初始化认证中间件
 	authMiddleware := custommiddleware.AuthMiddleware(db, jwtUtil)
 
-	// 5. 初始化各模块并注册
+	// 7. 初始化各模块并注册
 	// Auth 模块（不需要认证）
 	refreshTokenDuration := time.Duration(cfg.JWTRefreshTokenDuration) * 24 * time.Hour
 	authH := auth.NewHandler(db, jwtUtil, refreshTokenDuration)
