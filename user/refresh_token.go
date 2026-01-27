@@ -6,33 +6,53 @@ import (
 	"gorm.io/gorm"
 )
 
-// RefreshToken 刷新令牌模型
-type RefreshToken struct {
-	gorm.Model
-	UserID    uint      `json:"user_id" gorm:"not null;index"`
-	Token     string    `json:"token" gorm:"not null;unique;index:idx_token;size:255"`
-	ExpiresAt time.Time `json:"expires_at" gorm:"not null;index"`
-	Revoked   bool      `json:"revoked" gorm:"not null;default:false;index"`
-	DeviceInfo string   `json:"device_info" gorm:"size:255"` // 设备信息（可选）
+// RefreshTokenService 刷新令牌服务
+type RefreshTokenService struct {
+	db *gorm.DB
 }
 
-// TableName 指定表名
-func (RefreshToken) TableName() string {
-	return "refresh_tokens"
+// NewRefreshTokenService 创建新的刷新令牌服务
+func NewRefreshTokenService(db *gorm.DB) *RefreshTokenService {
+	return &RefreshTokenService{db: db}
 }
 
-// IsExpired 检查令牌是否过期
-func (rt *RefreshToken) IsExpired() bool {
-	return time.Now().After(rt.ExpiresAt)
+// Create 创建新的刷新令牌
+func (s *RefreshTokenService) Create(userID uint, token string, expiresAt time.Time, deviceInfo string) (*RefreshToken, error) {
+	refreshToken := &RefreshToken{
+		UserID:     userID,
+		Token:      token,
+		ExpiresAt:  expiresAt,
+		Revoked:    false,
+		DeviceInfo: deviceInfo,
+	}
+
+	if err := s.db.Create(refreshToken).Error; err != nil {
+		return nil, err
+	}
+
+	return refreshToken, nil
 }
 
-// IsValid 检查令牌是否有效（未过期且未撤销）
-func (rt *RefreshToken) IsValid() bool {
-	return !rt.Revoked && !rt.IsExpired()
+// Validate 验证刷新令牌是否有效
+func (s *RefreshTokenService) Validate(token string) (*RefreshToken, error) {
+	var rt RefreshToken
+	if err := s.db.Where("token = ? AND revoked = ? AND expires_at > ?", token, false, time.Now()).First(&rt).Error; err != nil {
+		return nil, err
+	}
+	return &rt, nil
 }
 
-// Revoke 撤销令牌
-func (rt *RefreshToken) Revoke(db *gorm.DB) error {
-	rt.Revoked = true
-	return db.Save(rt).Error
+// Revoke 撤销刷新令牌
+func (s *RefreshTokenService) Revoke(token string) error {
+	return s.db.Model(&RefreshToken{}).Where("token = ?", token).Update("revoked", true).Error
+}
+
+// RevokeAllByUser 撤销指定用户的所有刷新令牌
+func (s *RefreshTokenService) RevokeAllByUser(userID uint) error {
+	return s.db.Model(&RefreshToken{}).Where("user_id = ?", userID).Update("revoked", true).Error
+}
+
+// CleanupExpired 清理过期的刷新令牌
+func (s *RefreshTokenService) CleanupExpired() error {
+	return s.db.Where("expires_at < ?", time.Now()).Delete(&RefreshToken{}).Error
 }

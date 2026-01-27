@@ -117,7 +117,8 @@ func (h *Handler) Login(c echo.Context) error {
 
 	// 保存 Refresh Token 到数据库
 	deviceInfo := c.Request().UserAgent()
-	if _, err := h.refreshTokenService.Create(user.ID, refreshToken, h.refreshTokenDuration, deviceInfo); err != nil {
+	expiresAt := time.Now().Add(h.refreshTokenDuration)
+	if _, err := h.refreshTokenService.Create(user.ID, refreshToken, expiresAt, deviceInfo); err != nil {
 		return utils.Error(c, http.StatusInternalServerError, "Failed to save refresh token")
 	}
 

@@ -227,3 +227,83 @@ func (h *Handler) Logout(c echo.Context) error {
 
 	return utils.Success(c, MessageResponse{Message: "logged out"})
 }
+
+// GetCurrentUser 获取当前用户详细信息
+func (h *Handler) GetCurrentUser(c echo.Context) error {
+	user, err := h.getCurrentUser(c)
+	if err != nil {
+		return err
+	}
+
+	return utils.Success(c, user)
+}
+
+// UpdateCurrentUser 更新个人资料
+type UpdateUserRequest struct {
+	Nickname     string `json:"nickname" validate:"omitempty,min=2,max=30"`
+	Email        string `json:"email" validate:"omitempty,email"`
+	Organization string `json:"organization" validate:"omitempty,max=100"`
+}
+
+func (h *Handler) UpdateCurrentUser(c echo.Context) error {
+	user, err := h.getCurrentUser(c)
+	if err != nil {
+		return err
+	}
+
+	var req UpdateUserRequest
+	if err := c.Bind(&req); err != nil {
+		return utils.Fail(c, http.StatusBadRequest, "Invalid parameters")
+	}
+
+	if err := h.validateRequest(c, &req); err != nil {
+		return err
+	}
+
+	// 更新字段
+	if req.Nickname != "" {
+		user.Nickname = req.Nickname
+	}
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.Organization != "" {
+		user.Organization = req.Organization
+	}
+
+	if err := h.db.Save(&user).Error; err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Failed to update user profile")
+	}
+
+	return utils.Success(c, user)
+}
+
+// GetUserPoints 查询积分余额及流水
+type PointsResponse struct {
+	Balance      int64               `json:"balance"`
+	Transactions []PointsTransaction `json:"transactions"`
+}
+
+func (h *Handler) GetUserPoints(c echo.Context) error {
+	user, err := h.getCurrentUser(c)
+	if err != nil {
+		return err
+	}
+
+	// 查询积分流水（最近100条）
+	var transactions []PointsTransaction
+	if err := h.db.Model(&PointsTransaction{}).
+		Where("user_id = ?", user.ID).
+		Order("created_at DESC").
+		Limit(100).
+		Find(&transactions).Error; err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Failed to fetch points transactions")
+	}
+
+	response := PointsResponse{
+		Balance:      int64(user.Points),
+		Transactions: transactions,
+	}
+
+	return utils.Success(c, response)
+}
