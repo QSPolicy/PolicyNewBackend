@@ -4,6 +4,7 @@ import (
 	"policy-backend/auth"
 	"policy-backend/config"
 	"policy-backend/intelligence"
+	custommiddleware "policy-backend/middleware"
 	"policy-backend/org"
 	"policy-backend/user"
 	"policy-backend/utils"
@@ -37,22 +38,34 @@ func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 		time.Duration(cfg.JWTAccessTokenDuration)*time.Minute,
 	)
 
-	// 4. 初始化各模块并注册
-	// Auth 模块
+	// 4. 初始化认证中间件
+	authMiddleware := custommiddleware.AuthMiddleware(db, jwtUtil)
+
+	// 5. 初始化各模块并注册
+	// Auth 模块（不需要认证）
 	refreshTokenDuration := time.Duration(cfg.JWTRefreshTokenDuration) * 24 * time.Hour
 	authH := auth.NewHandler(db, jwtUtil, refreshTokenDuration)
 	auth.RegisterRoutes(api.Group("/auth"), authH)
 
-	// User 模块
+	// User 模块（需要认证）
 	userH := user.NewHandler(db)
-	user.RegisterRoutes(api.Group("/users"), userH)
+	userGroup := api.Group("/users")
+	userGroup.Use(authMiddleware)
+	user.RegisterRoutes(userGroup, userH)
 
-	// intelligence 模块
+	// intelligence 模块（需要认证）
 	intelligenceH := intelligence.NewHandler(db)
-	intelligence.RegisterPoliciesRoutes(api.Group("/policies"), intelligenceH)
-	intelligence.RegisterPolicyRoutes(api.Group("/policy"), intelligenceH)
+	policiesGroup := api.Group("/policies")
+	policiesGroup.Use(authMiddleware)
+	intelligence.RegisterPoliciesRoutes(policiesGroup, intelligenceH)
 
-	// Org 模块
+	policyGroup := api.Group("/policy")
+	policyGroup.Use(authMiddleware)
+	intelligence.RegisterPolicyRoutes(policyGroup, intelligenceH)
+
+	// Org 模块（需要认证）
 	orgH := org.NewHandler(db)
-	org.RegisterRoutes(e.Group("/org"), orgH)
+	orgGroup := e.Group("/org")
+	orgGroup.Use(authMiddleware)
+	org.RegisterRoutes(orgGroup, orgH)
 }

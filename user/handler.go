@@ -100,7 +100,6 @@ func (h *Handler) Register(c echo.Context) error {
 	return utils.Success(c, user)
 }
 
-
 // UpdatePassword 更新密码
 func (h *Handler) UpdatePassword(c echo.Context) error {
 	var req UpdatePasswordRequest
@@ -168,4 +167,63 @@ func (h *Handler) validateRequest(c echo.Context, req interface{}) error {
 		return utils.Fail(c, http.StatusBadRequest, err.Error())
 	}
 	return nil
+}
+
+// getCurrentUser 从 Context 中获取当前用户
+func (h *Handler) getCurrentUser(c echo.Context) (*User, error) {
+	user, ok := c.Get("user").(*User)
+	if !ok || user == nil {
+		return nil, utils.Fail(c, http.StatusUnauthorized, "User not authenticated")
+	}
+	return user, nil
+}
+
+// SessionResponse 会话响应结构体
+type SessionResponse struct {
+	Active   bool   `json:"active"`
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
+}
+
+// Session 检查会话状态
+func (h *Handler) Session(c echo.Context) error {
+	user, err := h.getCurrentUser(c)
+	if err != nil {
+		return err
+	}
+
+	return utils.Success(c, SessionResponse{
+		Active:   true,
+		UserID:   user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Nickname: user.Nickname,
+	})
+}
+
+// Logout 用户登出
+func (h *Handler) Logout(c echo.Context) error {
+	// 清除 Access Token Cookie
+	c.SetCookie(&http.Cookie{
+		Name:     "jwt",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+
+	// 清除 Refresh Token Cookie
+	c.SetCookie(&http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+
+	return utils.Success(c, MessageResponse{Message: "logged out"})
 }

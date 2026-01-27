@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"policy-backend/user"
 	"policy-backend/utils"
-	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -35,18 +34,20 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// RegisterRequest 注册请求结构体
+type RegisterRequest struct {
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Nickname string `json:"nickname" validate:"required,min=2,max=30"`
+}
+
 // 响应结构体
 
 // AuthResponse 认证响应结构体（双Token）
 type AuthResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-}
-
-// SessionResponse 会话响应结构体
-type SessionResponse struct {
-	Active   bool   `json:"active"`
-	Username string `json:"username"`
 }
 
 // MessageResponse 消息响应结构体
@@ -192,67 +193,45 @@ func (h *Handler) Refresh(c echo.Context) error {
 	})
 }
 
-// Logout 用户登出
-func (h *Handler) Logout(c echo.Context) error {
-	// 撤销 Refresh Token
-	if refreshToken := h.getRefreshTokenFromContext(c); refreshToken != "" {
-		h.refreshTokenService.Revoke(refreshToken)
+// Register 用户注册
+func (h *Handler) Register(c echo.Context) error {
+	var req RegisterRequest
+	if err := c.Bind(&req); err != nil {
+		return utils.Fail(c, http.StatusBadRequest, "Invalid parameters")
 	}
 
-	// 清除 Cookies
-	h.clearAuthCookie(c)
-	h.clearRefreshCookie(c)
-
-	return utils.Success(c, MessageResponse{Message: "logged out"})
-}
-
-// Session 检查会话状态
-func (h *Handler) Session(c echo.Context) error {
-	claims, err := h.getTokenClaims(c)
-	if err != nil {
+	if err := utils.ValidateRequest(c, &req); err != nil {
 		return err
 	}
 
-	return utils.Success(c, SessionResponse{
-		Active:   true,
-		Username: claims.Username,
-	})
-}
-
-// getTokenFromContext 从 cookie 或 Authorization header 中获取 token
-func (h *Handler) getTokenFromContext(c echo.Context) string {
-	// 先查找 cookie
-	if cookie, err := c.Cookie(cookieName); err == nil && cookie.Value != "" {
-		return cookie.Value
+	// 检查用户名是否已存在
+	var count int64
+	if err := h.db.Model(&user.User{}).Where("username = ?", req.Username).Count(&count).Error; err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "Database error")
+	} else if count > 0 {
+		return utils.Fail(c, http.StatusConflict, "Username already exists")
 	}
 
-	// 再查找 Authorization header
-	auth := c.Request().Header.Get("Authorization")
-	if auth == "" {
-		return ""
-	}
-
-	parts := strings.SplitN(auth, " ", 2)
-	if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
-		return parts[1]
-	}
-
-	return ""
-}
-
-// getTokenClaims 获取token中的声明信息
-func (h *Handler) getTokenClaims(c echo.Context) (*utils.JWTClaims, error) {
-	token := h.getTokenFromContext(c)
-	if token == "" {
-		return nil, utils.Fail(c, http.StatusUnauthorized, "Missing token")
-	}
-
-	claims, err := h.jwtUtil.ParseToken(token)
+	// 哈希密码
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, utils.Fail(c, http.StatusUnauthorized, "Invalid token")
+		return utils.Error(c, http.StatusInternalServerError, "Password encryption failed")
 	}
 
-	return claims, nil
+	// 创建用户
+	newUser := user.User{
+		Username:     req.Username,
+		PasswordHash: string(passwordHash),
+		Nickname:     req.Nickname,
+		Email:        req.Email,
+		Status:       userStatusOK,
+	}
+
+	if err := h.db.Create(&newUser).Error; err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "User creation failed")
+	}
+
+	return utils.Success(c, newUser)
 }
 
 // setAuthCookie 设置认证Cookie
