@@ -49,19 +49,7 @@ func InitDB(cfg *config.Config) error {
 	DB = db
 
 	// 自动迁移数据库表
-	if err := DB.AutoMigrate(
-		&intelligence.Intelligence{},
-		&intelligence.IntelligenceShared{},
-		&intelligence.Rating{},
-		&user.Team{},
-		&user.User{},
-		&user.TeamMember{},
-		&user.RefreshToken{},
-		&user.PointsTransaction{},
-		&search.SearchHistory{},
-		&org.Agency{},
-		&org.Country{},
-	); err != nil {
+	if err := AutoMigrate(); err != nil {
 		return err
 	}
 
@@ -71,4 +59,28 @@ func InitDB(cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// AutoMigrate 自动迁移数据库表
+// 此方法可单独调用，用于定时任务或其他场景
+func AutoMigrate() error {
+	if DB == nil {
+		return gorm.ErrInvalidDB
+	}
+
+	return DB.AutoMigrate(
+		&intelligence.Intelligence{},
+		&intelligence.IntelligenceShared{},
+		&intelligence.Rating{},
+		&user.Team{},
+		&user.User{},
+		&user.TeamMember{},
+		&user.RefreshToken{},
+		&user.PointsTransaction{},
+		&search.SearchHistory{},
+		&search.SearchBuffer{},
+		&search.SearchSession{},
+		&org.Agency{},
+		&org.Country{},
+	)
 }

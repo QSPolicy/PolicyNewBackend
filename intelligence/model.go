@@ -9,12 +9,17 @@ import (
 // Intelligence 情报信息
 type Intelligence struct {
 	gorm.Model
-	Title         string    `json:"title" gorm:"not null;unique;index"`
-	AgencyID      uint      `json:"agency_id" gorm:"not null;index"`
+	Title         string    `json:"title" gorm:"not null;index"`
+	Content       string    `json:"content" gorm:"type:text"`
+	AgencyID      uint      `json:"agency_id" gorm:"index"`
+	Source        string    `json:"source" gorm:"type:varchar(200)"`
+	URL           string    `json:"url" gorm:"type:text"`
 	Summary       string    `json:"summary" gorm:"type:text"`
 	Keywords      string    `json:"keywords" gorm:"type:text"`
-	OriginalURL   string    `json:"original_url" gorm:"type:text"`
+	DataHash      string    `json:"data_hash" gorm:"type:varchar(64);index"`
 	ContributorID uint      `json:"contributor_id" gorm:"not null;index"`
+	UserID        uint      `json:"user_id" gorm:"not null;index"`
+	TeamID        *uint     `json:"team_id,omitempty" gorm:"index"`
 	PublishDate   time.Time `json:"publish_date"`
 	Status        string    `json:"status" gorm:"type:varchar(20);default:'temporary'"` // temporary: 临时, official: 正式
 }
