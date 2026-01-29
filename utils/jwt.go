@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 var (
@@ -52,6 +53,7 @@ func (j *JWTUtil) GenerateAccessToken(username string) (string, error) {
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.TokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
+			ID:        uuid.New().String(),
 		},
 	}
 
@@ -68,6 +70,7 @@ func (j *JWTUtil) GenerateRefreshToken(username string, duration time.Duration) 
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
+			ID:        uuid.New().String(),
 		},
 	}
 
