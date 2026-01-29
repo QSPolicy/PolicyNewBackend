@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"policy-backend/intelligence"
 	"policy-backend/user"
@@ -18,12 +17,16 @@ import (
 
 // Handler 搜索处理器
 type Handler struct {
-	db *gorm.DB
+	db            *gorm.DB
+	pointsService *user.PointsTransactionService
 }
 
 // NewHandler 创建新的搜索处理器
-func NewHandler(db *gorm.DB) *Handler {
-	return &Handler{db: db}
+func NewHandler(db *gorm.DB, pointsService *user.PointsTransactionService) *Handler {
+	return &Handler{
+		db:            db,
+		pointsService: pointsService,
+	}
 }
 
 // GlobalSearch 全网智能检索
@@ -189,30 +192,13 @@ func (h *Handler) calculateHash(data map[string]interface{}) string {
 
 // deductPoints 扣除积分
 func (h *Handler) deductPoints(userID uint, points int64) error {
-	var u user.User
-	if err := h.db.First(&u, userID).Error; err != nil {
-		return err
-	}
-
-	if u.Points < int(points) {
-		return fmt.Errorf("insufficient points")
-	}
-
-	// 扣除积分
-	if err := h.db.Model(&u).Update("points", gorm.Expr("points - ?", points)).Error; err != nil {
-		return err
-	}
-
-	// 记录积分变动
-	transaction := user.PointsTransaction{
-		UserID:      userID,
-		Type:        "spend",
-		Amount:      -points,
-		Description: "使用高级搜索模型",
-		Metadata:    `{"model": "advanced"}`,
-		CreatedAt:   time.Now(),
-	}
-	return h.db.Create(&transaction).Error
+	return h.pointsService.AddTransaction(
+		userID,
+		-points,
+		"spend",
+		"使用高级搜索模型",
+		`{"model": "advanced"}`,
+	)
 }
 
 // ImportIntelligences 从缓冲区导入情报到正式库

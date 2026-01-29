@@ -49,14 +49,17 @@ func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 	authH := auth.NewHandler(db, jwtUtil, refreshTokenDuration)
 	auth.RegisterRoutes(api.Group("/auth"), authH)
 
+	// 初始化积分服务
+	pointsSvc := user.NewPointsTransactionService(db)
+
 	// User 模块（需要认证）
-	userH := user.NewHandler(db)
+	userH := user.NewHandler(db, pointsSvc)
 	userGroup := api.Group("/users")
 	userGroup.Use(authMiddleware)
 	user.RegisterRoutes(userGroup, userH)
 
 	// Search 模块（需要认证）
-	searchH := search.NewHandler(db)
+	searchH := search.NewHandler(db, pointsSvc)
 	searchGroup := api.Group("/search")
 	searchGroup.Use(authMiddleware)
 	search.RegisterRoutes(searchGroup, searchH)

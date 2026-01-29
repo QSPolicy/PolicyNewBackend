@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -16,21 +17,44 @@ func NewPointsTransactionService(db *gorm.DB) *PointsTransactionService {
 	return &PointsTransactionService{db: db}
 }
 
-// Create 创建积分交易记录
-func (s *PointsTransactionService) Create(userID uint, amount int64, transactionType string, description string, metadata string) (*PointsTransaction, error) {
-	transaction := &PointsTransaction{
-		UserID:      userID,
-		Amount:      amount,
-		Type:        transactionType,
-		Description: description,
-		Metadata:    metadata,
-	}
+// AddTransaction 添加积分交易（原子操作）
+// amount: 变动金额，正数为增加，负数为减少
+// txType: 交易类型 (e.g., "earn", "spend", "refund")
+func (s *PointsTransactionService) AddTransaction(userID uint, amount int64, txType string, description string, metadata string) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		// 1. 如果是扣减积分，先检查余额
+		if amount < 0 {
+			var user User
+			if err := tx.First(&user, userID).Error; err != nil {
+				return err
+			}
+			// 转换为 int64 进行比较
+			if int64(user.Points)+amount < 0 {
+				return errors.New("insufficient points")
+			}
+		}
 
-	if err := s.db.Create(transaction).Error; err != nil {
-		return nil, err
-	}
+		// 2. 创建交易记录
+		transaction := &PointsTransaction{
+			UserID:      userID,
+			Amount:      amount,
+			Type:        txType,
+			Description: description,
+			Metadata:    metadata,
+			CreatedAt:   time.Now(),
+		}
+		if err := tx.Create(transaction).Error; err != nil {
+			return err
+		}
 
-	return transaction, nil
+		// 3. 更新用户积分
+		if err := tx.Model(&User{}).Where("id = ?", userID).
+			Update("points", gorm.Expr("points + ?", amount)).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // GetByUser 获取用户的积分交易记录

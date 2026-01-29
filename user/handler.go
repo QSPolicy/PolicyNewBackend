@@ -50,13 +50,15 @@ type MessageResponse struct {
 
 // Handler 用户处理器
 type Handler struct {
-	db *gorm.DB
+	db            *gorm.DB
+	pointsService *PointsTransactionService
 }
 
 // NewHandler 创建新的用户处理器
-func NewHandler(db *gorm.DB) *Handler {
+func NewHandler(db *gorm.DB, pointsService *PointsTransactionService) *Handler {
 	return &Handler{
-		db: db,
+		db:            db,
+		pointsService: pointsService,
 	}
 }
 
@@ -291,12 +293,8 @@ func (h *Handler) GetUserPoints(c echo.Context) error {
 	}
 
 	// 查询积分流水（最近100条）
-	var transactions []PointsTransaction
-	if err := h.db.Model(&PointsTransaction{}).
-		Where("user_id = ?", user.ID).
-		Order("created_at DESC").
-		Limit(100).
-		Find(&transactions).Error; err != nil {
+	transactions, err := h.pointsService.GetByUser(user.ID, 100, 0)
+	if err != nil {
 		return utils.Error(c, http.StatusInternalServerError, "Failed to fetch points transactions")
 	}
 

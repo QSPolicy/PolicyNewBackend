@@ -7,6 +7,7 @@ import (
 	"policy-backend/database"
 	"policy-backend/router"
 	"policy-backend/search"
+	"policy-backend/user"
 
 	"github.com/labstack/echo/v4"
 )
@@ -25,8 +26,11 @@ func main() {
 		log.Fatalf("Failed to auto migrate database: %v", err)
 	}
 
+	// 初始化积分服务
+	pointsSvc := user.NewPointsTransactionService(database.DB)
+
 	// 创建搜索处理器（用于定时任务）
-	searchH := search.NewHandler(database.DB)
+	searchH := search.NewHandler(database.DB, pointsSvc)
 
 	// 启动定时任务
 	cronJob := cron.NewCronJob(database.DB, searchH)
