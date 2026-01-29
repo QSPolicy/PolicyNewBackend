@@ -8,7 +8,9 @@ import (
 
 // Intelligence 情报信息
 type Intelligence struct {
-	gorm.Model
+	ID            uint      `json:"id" gorm:"primaryKey"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 	Title         string    `json:"title" gorm:"not null;index"`
 	Content       string    `json:"content" gorm:"type:text"`
 	AgencyID      uint      `json:"agency_id" gorm:"index"`
