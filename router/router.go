@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"gorm.io/gorm"
 )
 
 func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 	// 1. 统一前缀
 	api := e.Group("/api")
-	api.Use(middleware.RequestLogger())
+	api.Use(custommiddleware.ZapLogger()) // 使用自定义的 Zap 日志中间件
+	// api.Use(middleware.RequestLogger()) // 移除 Echo 默认的 logger
 
 	// 2. 注册验证器到Echo
 	validator := utils.NewValidator()
