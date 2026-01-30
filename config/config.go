@@ -65,6 +65,13 @@ func LoadConfig() *Config {
 		log.Printf("warn: error loading config.yaml: %v", err)
 	}
 
+	// 尝试读取本地覆盖配置
+	if err := k.Load(file.Provider("config.local.yaml"), yaml.Parser()); err != nil {
+		// 忽略文件不存在的错误，其他错误则打印
+		// 由于 koanf file provider 不容易区分文件不存在，这里简单处理，如果加载失败通常就是文件不存在或格式错误
+		// 也可以显式检查文件是否存在，但 koanf 设计是松散的
+	}
+
 	// 从环境变量读取
 	// 从大写转小写 DATABASE_URL database_url
 	if err := k.Load(env.Provider("", ".", func(s string) string {

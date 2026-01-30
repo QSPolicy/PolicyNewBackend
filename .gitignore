@@ -3,3 +3,5 @@
 *.exe
 /debug
 logs
+/agent-cli
+config.local.yaml
