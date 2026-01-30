@@ -24,6 +24,16 @@ type Config struct {
 	// MySQL连接池配置（仅MySQL时有效）
 	MySQLMaxIdleConns int `koanf:"mysql_max_idle_conns"`
 	MySQLMaxOpenConns int `koanf:"mysql_max_open_conns"`
+
+	// LLM 配置列表
+	LLMConfigs []LLMConfig `koanf:"llm_configs"`
+}
+
+type LLMConfig struct {
+	Name    string `koanf:"name"`
+	APIKey  string `koanf:"api_key"`
+	BaseURL string `koanf:"base_url"`
+	Model   string `koanf:"model"`
 }
 
 var k = koanf.New(".")
@@ -37,8 +47,18 @@ func LoadConfig() *Config {
 	k.Set("jwt_refresh_token_duration", 7) // Refresh Token 默认7天
 	k.Set("log_level", "info")
 	k.Set("log_file", "logs/app.log")
-	k.Set("mysql_max_idle_conns", 10) // MySQL连接池最大空闲连接数
+	k.Set("mysql_max_idle_conns", 10)  // MySQL连接池最大空闲连接数
 	k.Set("mysql_max_open_conns", 100) // MySQL连接池最大打开连接数
+
+	// 默认 LLM 配置
+	k.Set("llm_configs", []LLMConfig{
+		{
+			Name:    "default",
+			BaseURL: "https://api.openai.com/v1",
+			Model:   "gpt-4o",
+			APIKey:  "",
+		},
+	})
 
 	// 从文件读取
 	if err := k.Load(file.Provider("config.yaml"), yaml.Parser()); err != nil {
