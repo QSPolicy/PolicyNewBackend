@@ -60,15 +60,15 @@ func main() {
 		fmt.Printf("已选择: %s\n", llmCfg.Name)
 	}
 
-	// 创建 MCP Server
-	mcpServer := agent.NewLocalMCPServer()
+	// 创建 Tool Provider
+	toolProvider := agent.NewLocalToolProvider()
 	fmt.Println("已注册的工具:")
-	for _, t := range mcpServer.ListTools() {
+	for _, t := range toolProvider.ListTools() {
 		fmt.Printf("  - %s: %s\n", t.Name, t.Description)
 	}
 
 	// 创建 Adapter
-	adapter := agent.NewMCPAdapter(mcpServer)
+	adapter := agent.NewOpenAIToolAdapter(toolProvider)
 
 	// 创建 Agent
 	ag := agent.NewAgent(llmCfg, adapter)

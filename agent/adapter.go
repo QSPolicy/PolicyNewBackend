@@ -8,37 +8,38 @@ import (
 	"github.com/openai/openai-go"
 )
 
-// ToolHandler defines the interface required by the Agent to interact with tools.
-// This decouples the Agent from the specific tool implementation (e.g., MCP).
+// ToolHandler 定义了 Agent 与工具交互所需的接口。
+// 这将 Agent 与具体的工具实现（如 MCP）解耦。
 type ToolHandler interface {
 	GetTools() []openai.ChatCompletionToolParam
 	ExecuteTool(ctx context.Context, toolCall openai.ChatCompletionMessageToolCall) (string, error)
 }
 
-// MCPAdapter adapts an MCPServer to the ToolHandler interface.
-// It translates OpenAI tool calls to MCP tool executions and vice versa.
-type MCPAdapter struct {
-	server MCPServer
+// OpenAIToolAdapter 将 ToolProvider 适配为 ToolHandler 接口。
+// 它在我们的领域模型和 OpenAI 的 API 格式之间进行转换。
+// 这是适配器模式的应用 —— 将一个接口转换为另一个接口。
+type OpenAIToolAdapter struct {
+	provider ToolProvider
 }
 
-// NewMCPAdapter creates a new adapter for the given MCP server.
-func NewMCPAdapter(server MCPServer) *MCPAdapter {
-	return &MCPAdapter{
-		server: server,
+// NewOpenAIToolAdapter 为给定的工具提供者创建一个新的适配器。
+func NewOpenAIToolAdapter(provider ToolProvider) *OpenAIToolAdapter {
+	return &OpenAIToolAdapter{
+		provider: provider,
 	}
 }
 
-// GetTools lists available tools from the MCP server and converts them to OpenAI format.
-func (a *MCPAdapter) GetTools() []openai.ChatCompletionToolParam {
-	mcpTools := a.server.ListTools()
+// GetTools 将我们的 Tool 定义转换为 OpenAI 的函数调用格式。
+func (a *OpenAIToolAdapter) GetTools() []openai.ChatCompletionToolParam {
+	tools := a.provider.ListTools()
 	var openaiTools []openai.ChatCompletionToolParam
 
-	for _, t := range mcpTools {
-		// Convert MCP ToolInputSchema to map[string]any for FunctionParameters
+	for _, t := range tools {
+		// 构建符合 JSON Schema 的参数
 		schemaMap := map[string]any{
 			"type": t.InputSchema.Type,
 		}
-		if t.InputSchema.Properties != nil {
+		if len(t.InputSchema.Properties) > 0 {
 			schemaMap["properties"] = t.InputSchema.Properties
 		}
 		if len(t.InputSchema.Required) > 0 {
@@ -57,23 +58,42 @@ func (a *MCPAdapter) GetTools() []openai.ChatCompletionToolParam {
 	return openaiTools
 }
 
-// ExecuteTool calls the corresponding tool on the MCP server.
-func (a *MCPAdapter) ExecuteTool(ctx context.Context, toolCall openai.ChatCompletionMessageToolCall) (string, error) {
-	args := make(map[string]interface{})
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return "", fmt.Errorf("failed to unmarshal arguments: %w", err)
+// ExecuteTool 解析 OpenAI 的工具调用并委派给提供者执行。
+func (a *OpenAIToolAdapter) ExecuteTool(ctx context.Context, toolCall openai.ChatCompletionMessageToolCall) (string, error) {
+	// 从 JSON 解析参数
+	args := make(map[string]any)
+	if toolCall.Function.Arguments != "" {
+		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+			return "", fmt.Errorf("无法解析参数: %w", err)
+		}
 	}
 
-	result, err := a.server.ExecuteTool(ctx, toolCall.Function.Name, args)
+	// 通过提供者执行
+	result, err := a.provider.ExecuteTool(ctx, toolCall.Function.Name, args)
 	if err != nil {
 		return "", err
 	}
+
+	// 处理错误结果
 	if result.IsError {
-		return "", fmt.Errorf("tool execution failed")
+		if errMsg, ok := result.Content.(string); ok {
+			return "", fmt.Errorf("工具错误: %s", errMsg)
+		}
+		return "", fmt.Errorf("工具执行失败")
 	}
-	bytes, err := json.Marshal(result.Content)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal tool result: %w", err)
+
+	// 序列化结果内容
+	switch v := result.Content.(type) {
+	case string:
+		return v, nil
+	default:
+		bytes, err := json.Marshal(v)
+		if err != nil {
+			return "", fmt.Errorf("无法序列化工具结果: %w", err)
+		}
+		return string(bytes), nil
 	}
-	return string(bytes), nil
 }
+
+// 确保 OpenAIToolAdapter 实现了 ToolHandler
+var _ ToolHandler = (*OpenAIToolAdapter)(nil)

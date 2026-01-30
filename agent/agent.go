@@ -13,12 +13,14 @@ import (
 	"policy-backend/utils"
 )
 
+// Agent 是一个协调 LLM 与工具交互的核心组件。
 type Agent struct {
 	client *openai.Client
 	model  shared.ChatModel
 	tools  ToolHandler
 }
 
+// NewAgent 根据 LLM 配置和工具处理程序创建一个新的 Agent 实例。
 func NewAgent(llmCfg config.LLMConfig, toolHandler ToolHandler) *Agent {
 	opts := []option.RequestOption{
 		option.WithAPIKey(llmCfg.APIKey),
@@ -35,6 +37,7 @@ func NewAgent(llmCfg config.LLMConfig, toolHandler ToolHandler) *Agent {
 	}
 }
 
+// Chat 执行同步对话，并自动处理工具调用循环。
 func (a *Agent) Chat(ctx context.Context, messages []openai.ChatCompletionMessageParamUnion) (*openai.ChatCompletion, error) {
 	tools := a.tools.GetTools()
 	currentMessages := messages
@@ -57,7 +60,7 @@ func (a *Agent) Chat(ctx context.Context, messages []openai.ChatCompletionMessag
 			return chatCompletion, nil
 		}
 
-		// Build assistant message with tool calls
+		// 构建带有工具调用的助手消息
 		toolCallsParam := make([]openai.ChatCompletionMessageToolCallParam, 0, len(choice.Message.ToolCalls))
 		for _, tc := range choice.Message.ToolCalls {
 			toolCallsParam = append(toolCallsParam, openai.ChatCompletionMessageToolCallParam{
@@ -84,12 +87,12 @@ func (a *Agent) Chat(ctx context.Context, messages []openai.ChatCompletionMessag
 
 		currentMessages = append(currentMessages, assistantMsg)
 
-		// Execute tools and add results
+		// 执行工具并添加结果
 		for _, toolCall := range choice.Message.ToolCalls {
-			utils.Log.Info("Agent calling tool", zap.String("tool", toolCall.Function.Name))
+			utils.Log.Info("Agent调用工具", zap.String("tool", toolCall.Function.Name))
 			resultStr, err := a.tools.ExecuteTool(ctx, toolCall)
 			if err != nil {
-				utils.Log.Error("Error executing tool", zap.String("tool", toolCall.Function.Name), zap.Error(err))
+				utils.Log.Error("工具执行出错", zap.String("tool", toolCall.Function.Name), zap.Error(err))
 				resultStr = fmt.Sprintf("Error: %v", err)
 			}
 
@@ -105,8 +108,8 @@ func (a *Agent) Chat(ctx context.Context, messages []openai.ChatCompletionMessag
 	}
 }
 
-// ChatStream executes a streaming chat completion.
-// If onChunk is provided, it receives content chunks as they arrive.
+// ChatStream 执行流式对话。
+// 如果提供了 onChunk 回调，它将在接收到内容块时被调用。
 func (a *Agent) ChatStream(ctx context.Context, messages []openai.ChatCompletionMessageParamUnion, onChunk func(string)) (*openai.ChatCompletion, error) {
 	tools := a.tools.GetTools()
 	currentMessages := messages
@@ -137,7 +140,7 @@ func (a *Agent) ChatStream(ctx context.Context, messages []openai.ChatCompletion
 
 			delta := chunk.Choices[0].Delta
 
-			// Handle Content
+			// 处理文本内容
 			if delta.Content != "" {
 				accumulatedContent += delta.Content
 				if onChunk != nil {
@@ -145,7 +148,7 @@ func (a *Agent) ChatStream(ctx context.Context, messages []openai.ChatCompletion
 				}
 			}
 
-			// Handle ToolCalls
+			// 处理工具调用
 			for _, tc := range delta.ToolCalls {
 				idx := tc.Index
 				if _, ok := toolCallsMap[idx]; !ok {
@@ -170,10 +173,10 @@ func (a *Agent) ChatStream(ctx context.Context, messages []openai.ChatCompletion
 		}
 		stream.Close()
 
-		// Reconstruct complete tool calls
+		// 重构完整的工具调用
 		var toolCalls []openai.ChatCompletionMessageToolCall
 		if len(toolCallsMap) > 0 {
-			// Find max index
+			// 找到最大索引
 			var maxIdx int64 = -1
 			for idx := range toolCallsMap {
 				if idx > maxIdx {
@@ -195,7 +198,7 @@ func (a *Agent) ChatStream(ctx context.Context, messages []openai.ChatCompletion
 			}
 		}
 
-		// If no tool calls, returns the accumulated message.
+		// 如果没有工具调用，返回累积的消息。
 		if len(toolCalls) == 0 {
 			msg := openai.ChatCompletionMessage{
 				Role:    "assistant",
@@ -211,7 +214,7 @@ func (a *Agent) ChatStream(ctx context.Context, messages []openai.ChatCompletion
 			}, nil
 		}
 
-		// If there are tool calls, we must execute them and continue the loop.
+		// 如果有工具调用，必须执行它们并继续循环。
 
 		toolCallsParam := make([]openai.ChatCompletionMessageToolCallParam, 0, len(toolCalls))
 		for _, tc := range toolCalls {
@@ -237,12 +240,12 @@ func (a *Agent) ChatStream(ctx context.Context, messages []openai.ChatCompletion
 		}
 		currentMessages = append(currentMessages, assistantMsg)
 
-		// Execute tools
+		// 执行工具
 		for _, tc := range toolCalls {
-			utils.Log.Info("Agent calling tool (streaming mode)", zap.String("tool", tc.Function.Name))
+			utils.Log.Info("Agent调用工具 (流式模式)", zap.String("tool", tc.Function.Name))
 			resultStr, err := a.tools.ExecuteTool(ctx, tc)
 			if err != nil {
-				utils.Log.Error("Error executing tool", zap.String("tool", tc.Function.Name), zap.Error(err))
+				utils.Log.Error("工具执行出错", zap.String("tool", tc.Function.Name), zap.Error(err))
 				resultStr = fmt.Sprintf("Error: %v", err)
 			}
 
@@ -255,6 +258,6 @@ func (a *Agent) ChatStream(ctx context.Context, messages []openai.ChatCompletion
 				},
 			})
 		}
-		// Loop continues to send tool results back to LLM...
+		// 循环继续，将工具结果发送回 LLM...
 	}
 }
