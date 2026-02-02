@@ -61,7 +61,9 @@ func main() {
 	}
 
 	// 创建 Tool Provider
-	toolProvider := agent.NewLocalToolProvider()
+	toolProvider := agent.NewLocalToolProvider(&agent.ToolConfig{
+		BaiduAPIKey: cfg.BaiduSearchAPIKey,
+	})
 	fmt.Println("已注册的工具:")
 	for _, t := range toolProvider.ListTools() {
 		fmt.Printf("  - %s: %s\n", t.Name, t.Description)

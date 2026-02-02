@@ -27,6 +27,9 @@ type Config struct {
 
 	// LLM 配置列表
 	LLMConfigs []LLMConfig `koanf:"llm_configs"`
+
+	// 百度搜索 API 配置
+	BaiduSearchAPIKey string `koanf:"baidu_search_api_key"`
 }
 
 type LLMConfig struct {
