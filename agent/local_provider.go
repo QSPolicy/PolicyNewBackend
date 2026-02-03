@@ -36,7 +36,7 @@ func NewLocalToolProvider(cfg *ToolConfig) *LocalToolProvider {
 		searchEngine = &mcpimpl.MockSearchEngine{}
 	}
 	p.Register(mcpimpl.NewSearchTool(searchEngine))
-
+	p.Register(mcpimpl.NewFetchContentTool())
 	// 在这里继续注册其他所有工具...
 	// p.Register(...)
 
