@@ -71,10 +71,10 @@ func (e *Engine) runPlannerPhase(ctx context.Context, store *workflow.Store) err
 	// 使用 workflow 通用集合收集工具
 	collectTool := workflow.NewSetCollectorTool(
 		store,
-		"collect_url",
-		"记录一个看起来包含相关信息的URL，供后续详细分析。当你发现搜索结果中有一个链接可能包含用户问题的答案时，请使用此工具。",
+		"collect_urls",
+		"记录一个或多个看起来包含相关信息的URL，供后续详细分析。当你发现搜索结果中有链接可能包含用户问题的答案时，请使用此工具收集它们。",
 		KeyCollectedURLs,
-		"url",
+		"urls",
 	)
 	provider.Register(collectTool)
 

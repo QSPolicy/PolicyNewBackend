@@ -32,18 +32,29 @@ func NewSetCollectorTool(store *Store, name, description, storeKey, paramName st
 func (t *SetCollectorTool) Spec() def.Tool {
 	return def.NewTool(t.name).
 		WithDescription(t.description).
-		WithStringParam(t.paramName, fmt.Sprintf("The value to collect for %s", t.paramName), true).
+		WithStringArrayParam(t.paramName, fmt.Sprintf("The list of values to collect for %s", t.paramName), true).
 		Build()
 }
 
 func (t *SetCollectorTool) Execute(ctx context.Context, args map[string]any) (*def.ToolResult, error) {
-	val, ok := args[t.paramName].(string)
+	val, ok := args[t.paramName].([]any)
 	if !ok {
-		return def.NewToolResultError(fmt.Sprintf("Parameter '%s' is required and must be a string", t.paramName)), nil
+		// Fallback for backward compatibility or hallucination (single string)
+		if strVal, ok := args[t.paramName].(string); ok {
+			t.store.AddToSet(t.storeKey, strVal)
+			return def.NewToolResultText(fmt.Sprintf("Successfully collected: %s", strVal)), nil
+		}
+		return def.NewToolResultError(fmt.Sprintf("Parameter '%s' must be an array of strings", t.paramName)), nil
 	}
 
-	t.store.AddToSet(t.storeKey, val)
-	return def.NewToolResultText(fmt.Sprintf("Successfully collected: %s", val)), nil
+	count := 0
+	for _, item := range val {
+		if str, ok := item.(string); ok {
+			t.store.AddToSet(t.storeKey, str)
+			count++
+		}
+	}
+	return def.NewToolResultText(fmt.Sprintf("Successfully collected %d items", count)), nil
 }
 
 // === Generic Context Tool: Key Value Setter ===

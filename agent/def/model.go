@@ -18,10 +18,11 @@ type ToolInputSchema struct {
 
 // PropertySchema 定义了单个参数的 schema。
 type PropertySchema struct {
-	Type        string   `json:"type"`
-	Description string   `json:"description,omitempty"`
-	Enum        []string `json:"enum,omitempty"`
-	Default     any      `json:"default,omitempty"`
+	Type        string          `json:"type"`
+	Description string          `json:"description,omitempty"`
+	Enum        []string        `json:"enum,omitempty"`
+	Default     any             `json:"default,omitempty"`
+	Items       *PropertySchema `json:"items,omitempty"`
 }
 
 // ToolResult 表示工具执行的结果。
@@ -112,6 +113,21 @@ func (b *ToolBuilder) WithEnumParam(name, description string, values []string, r
 		Type:        "string",
 		Description: description,
 		Enum:        values,
+	}
+	if required {
+		b.tool.InputSchema.Required = append(b.tool.InputSchema.Required, name)
+	}
+	return b
+}
+
+// WithStringArrayParam 为工具添加一个字符串数组参数。
+func (b *ToolBuilder) WithStringArrayParam(name, description string, required bool) *ToolBuilder {
+	b.tool.InputSchema.Properties[name] = PropertySchema{
+		Type:        "array",
+		Description: description,
+		Items: &PropertySchema{
+			Type: "string",
+		},
 	}
 	if required {
 		b.tool.InputSchema.Required = append(b.tool.InputSchema.Required, name)
