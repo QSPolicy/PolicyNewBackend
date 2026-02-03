@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"policy-backend/config"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -13,7 +12,8 @@ import (
 
 var Log *zap.Logger
 
-func InitLogger(cfg *config.Config) {
+// InitLogger 初始化日志，使用模块化配置
+func InitLogger(cfg *LogConfig) {
 	// 确保日志目录存在
 	if cfg.LogFile != "" {
 		logDir := filepath.Dir(cfg.LogFile)
