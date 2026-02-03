@@ -1,9 +1,11 @@
-package agent
+package mcpimpl
 
 import (
 	"context"
 	"fmt"
 	"strings"
+
+	"policy-backend/agent/def"
 )
 
 // SearchResultItem 代表单个搜索结果，抽象自百度/Google等搜索引擎的响应
@@ -47,8 +49,8 @@ func NewSearchTool(engine SearchEngine) *SearchTool {
 	return &SearchTool{Engine: engine}
 }
 
-func (t *SearchTool) Spec() Tool {
-	return NewTool("search_internet").
+func (t *SearchTool) Spec() def.Tool {
+	return def.NewTool("search_internet").
 		WithDescription("使用搜索引擎查询实时信息。支持指定时间范围、资源类型和特定站点。").
 		WithStringParam("query", "搜索关键词", true).
 		WithNumberParam("limit", "返回结果数量限制 (默认 10，最大 50)", false).
@@ -58,10 +60,10 @@ func (t *SearchTool) Spec() Tool {
 		Build()
 }
 
-func (t *SearchTool) Execute(ctx context.Context, args map[string]any) (*ToolResult, error) {
+func (t *SearchTool) Execute(ctx context.Context, args map[string]any) (*def.ToolResult, error) {
 	query, ok := args["query"].(string)
 	if !ok {
-		return NewToolResultError("query 参数是必需的且必须是字符串"), nil
+		return def.NewToolResultError("query 参数是必需的且必须是字符串"), nil
 	}
 
 	limit := 10
@@ -93,10 +95,10 @@ func (t *SearchTool) Execute(ctx context.Context, args map[string]any) (*ToolRes
 
 	results, err := t.Engine.Search(ctx, opts)
 	if err != nil {
-		return NewToolResultError(fmt.Sprintf("搜索执行失败: %v", err)), nil
+		return def.NewToolResultError(fmt.Sprintf("搜索执行失败: %v", err)), nil
 	}
 
-	return NewToolResult(results), nil
+	return def.NewToolResult(results), nil
 }
 
 // 辅助函数：分割并修剪字符串
@@ -112,8 +114,8 @@ func splitAndTrim(s string) []string {
 	return result
 }
 
-// 确保 SearchTool 实现了 ToolImplementation 接口
-var _ ToolImplementation = (*SearchTool)(nil)
+// 确保 SearchTool 实现了 def.ToolImplementation 接口
+var _ def.ToolImplementation = (*SearchTool)(nil)
 
 // --- Mock Search Engine Implementation ---
 

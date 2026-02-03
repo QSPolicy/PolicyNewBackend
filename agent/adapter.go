@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"policy-backend/agent/def"
 
 	"github.com/openai/openai-go"
 )
@@ -19,11 +20,11 @@ type ToolHandler interface {
 // 它在我们的领域模型和 OpenAI 的 API 格式之间进行转换。
 // 这是适配器模式的应用 —— 将一个接口转换为另一个接口。
 type OpenAIToolAdapter struct {
-	provider ToolProvider
+	provider def.ToolProvider
 }
 
 // NewOpenAIToolAdapter 为给定的工具提供者创建一个新的适配器。
-func NewOpenAIToolAdapter(provider ToolProvider) *OpenAIToolAdapter {
+func NewOpenAIToolAdapter(provider def.ToolProvider) *OpenAIToolAdapter {
 	return &OpenAIToolAdapter{
 		provider: provider,
 	}
@@ -40,7 +41,11 @@ func (a *OpenAIToolAdapter) GetTools() []openai.ChatCompletionToolParam {
 			"type": t.InputSchema.Type,
 		}
 		if len(t.InputSchema.Properties) > 0 {
-			schemaMap["properties"] = t.InputSchema.Properties
+			properties := make(map[string]any)
+			for k, v := range t.InputSchema.Properties {
+				properties[k] = v
+			}
+			schemaMap["properties"] = properties
 		}
 		if len(t.InputSchema.Required) > 0 {
 			schemaMap["required"] = t.InputSchema.Required

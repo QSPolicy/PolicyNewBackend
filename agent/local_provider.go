@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"policy-backend/agent/def"
+	mcpimpl "policy-backend/agent/mcp-impl"
 	"policy-backend/utils"
 	"time"
 
@@ -13,27 +15,27 @@ import (
 // LocalToolProvider 是一个简单的进程内工具注册表。
 // 它在内存中存储工具及其处理程序，以便直接调用。
 type LocalToolProvider struct {
-	tools    []Tool
-	handlers map[string]ToolImplementation
+	tools    []def.Tool
+	handlers map[string]def.ToolImplementation
 }
 
 // NewLocalToolProvider 创建一个新的本地工具提供者，并注册所有的工具。
 // 它接受可选的配置参数，用于初始化工具。
 func NewLocalToolProvider(cfg *ToolConfig) *LocalToolProvider {
 	p := &LocalToolProvider{
-		tools:    make([]Tool, 0),
-		handlers: make(map[string]ToolImplementation),
+		tools:    make([]def.Tool, 0),
+		handlers: make(map[string]def.ToolImplementation),
 	}
 
 	// 注册搜索工具
 	// 优先使用 Config 中的 Key，如果不存在则使用 Mock
-	var searchEngine SearchEngine
+	var searchEngine mcpimpl.SearchEngine
 	if cfg != nil && cfg.BaiduAPIKey != "" {
-		searchEngine = NewBaiduSearchEngine(cfg.BaiduAPIKey)
+		searchEngine = mcpimpl.NewBaiduSearchEngine(cfg.BaiduAPIKey)
 	} else {
-		searchEngine = &MockSearchEngine{}
+		searchEngine = &mcpimpl.MockSearchEngine{}
 	}
-	p.Register(NewSearchTool(searchEngine))
+	p.Register(mcpimpl.NewSearchTool(searchEngine))
 
 	// 在这里继续注册其他所有工具...
 	// p.Register(...)
@@ -48,19 +50,19 @@ type ToolConfig struct {
 
 // Register 向提供者添加新的工具实现。
 // 这是扩展点 —— 可以在不修改现有代码的情况下添加新工具。
-func (p *LocalToolProvider) Register(impl ToolImplementation) {
+func (p *LocalToolProvider) Register(impl def.ToolImplementation) {
 	spec := impl.Spec()
 	p.tools = append(p.tools, spec)
 	p.handlers[spec.Name] = impl
 }
 
 // ListTools 返回所有注册的工具。
-func (p *LocalToolProvider) ListTools() []Tool {
+func (p *LocalToolProvider) ListTools() []def.Tool {
 	return p.tools
 }
 
 // ExecuteTool 按名称执行工具。
-func (p *LocalToolProvider) ExecuteTool(ctx context.Context, name string, args map[string]any) (*ToolResult, error) {
+func (p *LocalToolProvider) ExecuteTool(ctx context.Context, name string, args map[string]any) (*def.ToolResult, error) {
 	impl, ok := p.handlers[name]
 	if !ok {
 		utils.Log.Warn("[MCP] 工具未找到", zap.String("tool", name))
@@ -104,5 +106,5 @@ func (p *LocalToolProvider) ExecuteTool(ctx context.Context, name string, args m
 	return result, nil
 }
 
-// 确保 LocalToolProvider 实现了 ToolProvider 接口
-var _ ToolProvider = (*LocalToolProvider)(nil)
+// 确保 LocalToolProvider 实现了 def.ToolProvider 接口
+var _ def.ToolProvider = (*LocalToolProvider)(nil)

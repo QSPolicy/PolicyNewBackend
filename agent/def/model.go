@@ -1,4 +1,4 @@
-package agent
+package def
 
 // Tool 表示一个可调用的工具定义。
 // 这是我们自己的轻量级模型，独立于任何外部库。
