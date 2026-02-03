@@ -2,16 +2,15 @@ package research
 
 import (
 	"policy-backend/agent"
-	"policy-backend/config"
 )
 
 // Config 研究工作流的完整配置
 type Config struct {
 	// Planner 使用高能力模型进行搜索决策
-	PlannerLLM config.LLMConfig
+	PlannerLLM agent.LLMConfig
 
 	// Worker 使用轻量模型进行内容摘要
-	WorkerLLM config.LLMConfig
+	WorkerLLM agent.LLMConfig
 
 	// 搜索工具配置
 	SearchConfig agent.ToolConfig
@@ -30,13 +29,13 @@ func DefaultConfig() *Config {
 }
 
 // WithPlannerLLM 设置 Planner 的 LLM 配置
-func (c *Config) WithPlannerLLM(cfg config.LLMConfig) *Config {
+func (c *Config) WithPlannerLLM(cfg agent.LLMConfig) *Config {
 	c.PlannerLLM = cfg
 	return c
 }
 
 // WithWorkerLLM 设置 Worker 的 LLM 配置
-func (c *Config) WithWorkerLLM(cfg config.LLMConfig) *Config {
+func (c *Config) WithWorkerLLM(cfg agent.LLMConfig) *Config {
 	c.WorkerLLM = cfg
 	return c
 }

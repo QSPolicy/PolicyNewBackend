@@ -9,7 +9,6 @@ import (
 	"github.com/openai/openai-go/shared"
 	"go.uber.org/zap"
 
-	"policy-backend/config"
 	"policy-backend/utils"
 )
 
@@ -21,7 +20,7 @@ type Agent struct {
 }
 
 // NewAgent 根据 LLM 配置和工具处理程序创建一个新的 Agent 实例。
-func NewAgent(llmCfg config.LLMConfig, toolHandler ToolHandler) *Agent {
+func NewAgent(llmCfg LLMConfig, toolHandler ToolHandler) *Agent {
 	opts := []option.RequestOption{
 		option.WithAPIKey(llmCfg.APIKey),
 	}

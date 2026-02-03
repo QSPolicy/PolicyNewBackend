@@ -1,7 +1,6 @@
 package database
 
 import (
-	"policy-backend/config"
 	"policy-backend/intelligence"
 	"policy-backend/org"
 	"policy-backend/search"
@@ -15,7 +14,8 @@ import (
 
 var DB *gorm.DB
 
-func InitDB(cfg *config.Config) error {
+// InitDB 初始化数据库连接，使用模块化配置
+func InitDB(cfg *Config) error {
 	var err error
 	var db *gorm.DB
 

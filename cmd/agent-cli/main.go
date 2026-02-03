@@ -19,10 +19,10 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// 初始化日志
-	utils.InitLogger(cfg)
+	utils.InitLogger(&cfg.Log)
 
 	// 检查是否有 LLM 配置
-	if len(cfg.LLMConfigs) == 0 {
+	if len(cfg.Agent.LLMConfigs) == 0 {
 		fmt.Println("错误: 没有配置 LLM，请在 config.yaml 中添加 llm_configs")
 		os.Exit(1)
 	}
@@ -30,13 +30,13 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	// 选择配置
-	var llmCfg config.LLMConfig
-	if len(cfg.LLMConfigs) == 1 {
-		llmCfg = cfg.LLMConfigs[0]
+	var llmCfg agent.LLMConfig
+	if len(cfg.Agent.LLMConfigs) == 1 {
+		llmCfg = cfg.Agent.LLMConfigs[0]
 		fmt.Printf("自动选择唯一配置: %s (%s)\n", llmCfg.Name, llmCfg.Model)
 	} else {
 		fmt.Println("可用模型配置:")
-		for i, c := range cfg.LLMConfigs {
+		for i, c := range cfg.Agent.LLMConfigs {
 			fmt.Printf("  [%d] %s (Model: %s)\n", i+1, c.Name, c.Model)
 		}
 
@@ -52,17 +52,17 @@ func main() {
 			idx-- // 转为 0-based
 		}
 
-		if idx < 0 || idx >= len(cfg.LLMConfigs) {
+		if idx < 0 || idx >= len(cfg.Agent.LLMConfigs) {
 			fmt.Println("无效选择，使用默认配置 #1")
 			idx = 0
 		}
-		llmCfg = cfg.LLMConfigs[idx]
+		llmCfg = cfg.Agent.LLMConfigs[idx]
 		fmt.Printf("已选择: %s\n", llmCfg.Name)
 	}
 
 	// 创建 Tool Provider
 	toolProvider := agent.NewLocalToolProvider(&agent.ToolConfig{
-		BaiduAPIKey: cfg.BaiduSearchAPIKey,
+		BaiduAPIKey: cfg.Agent.BaiduSearchAPIKey,
 	})
 	fmt.Println("已注册的工具:")
 	for _, t := range toolProvider.ListTools() {

@@ -3,7 +3,7 @@ package workflow
 import (
 	"context"
 
-	"policy-backend/config"
+	"policy-backend/agent"
 )
 
 // Phase 定义工作流中的一个阶段
@@ -22,7 +22,7 @@ type Engine interface {
 
 // AgentConfig 定义一个 Agent 的配置
 type AgentConfig struct {
-	LLM   config.LLMConfig
+	LLM   agent.LLMConfig
 	Tools []string // 工具名称列表
 }
 

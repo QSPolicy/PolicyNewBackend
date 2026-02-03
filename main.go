@@ -14,15 +14,18 @@ import (
 )
 
 func main() {
-	// 加载配置
+	// 加载所有配置（聚合各模块配置）
 	cfg := config.LoadConfig()
 
-	// 初始化日志
-	utils.InitLogger(cfg)
+	// 初始化日志（注入日志配置）
+	utils.InitLogger(&cfg.Log)
 	defer zap.L().Sync() // 刷新缓冲
 
-	// 初始化数据库连接
-	if err := database.InitDB(cfg); err != nil {
+	// 打印已加载的配置（调试信息）
+	zap.L().Info("Configuration loaded", zap.Any("config", cfg.GetDebugConfig()))
+
+	// 初始化数据库连接（注入数据库配置）
+	if err := database.InitDB(&cfg.Database); err != nil {
 		zap.L().Fatal("Failed to connect to database", zap.Error(err))
 	}
 
@@ -45,11 +48,11 @@ func main() {
 	// 创建Echo实例
 	e := echo.New()
 
-	// 注册路由
-	router.Init(e, database.DB, cfg)
+	// 注册路由（注入认证配置）
+	router.Init(e, database.DB, &cfg.Auth)
 
-	// 启动服务器
-	if err := e.Start(cfg.ServerAddress); err != nil {
+	// 启动服务器（使用服务器配置）
+	if err := e.Start(cfg.Server.ServerAddress); err != nil {
 		zap.L().Fatal("Failed to start server", zap.Error(err))
 	}
 }
