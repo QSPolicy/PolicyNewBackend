@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"log"
 	"reflect"
 	"strings"
@@ -130,4 +131,59 @@ func LoadConfig() *Config {
 			LogFile:  app.LogFile,
 		},
 	}
+}
+
+// GetDebugConfig 返回已加载配置的 Map 视图，并自动对敏感字段进行模糊处理
+// 通过将结构体转为 map 并递归遍历实现，无需手动维护字段列表
+func (c *Config) GetDebugConfig() map[string]interface{} {
+	var m map[string]interface{}
+	// 利用 JSON 序列化将结构体转换为 map
+	// 注意：Config 结构体字段需要是 Exported 的（首字母大写），这是 Go 的要求，我们已经满足
+	b, _ := json.Marshal(c)
+	_ = json.Unmarshal(b, &m)
+
+	return maskMap(m)
+}
+
+// maskMap 递归遍历 map，对敏感 key 的 value 进行遮蔽
+func maskMap(m map[string]interface{}) map[string]interface{} {
+	for k, v := range m {
+		// 如果值是嵌套的 map（对应嵌套结构体），递归处理
+		if innerMap, ok := v.(map[string]interface{}); ok {
+			m[k] = maskMap(innerMap)
+			continue
+		}
+
+		// 检查 key 是否包含敏感词
+		if isSensitiveKey(k) {
+			m[k] = "***MASKED***"
+		}
+	}
+	return m
+}
+
+// isSensitiveKey 判断字段名是否敏感
+func isSensitiveKey(key string) bool {
+	k := strings.ToLower(key)
+	// 敏感关键词列表
+	sensitivePatterns := []string{
+		"password",
+		"secret",
+		"apikey",
+		"token_key", // 避免误杀 TokenDuration
+		"access_key",
+	}
+
+	for _, pattern := range sensitivePatterns {
+		if strings.Contains(k, pattern) {
+			return true
+		}
+	}
+
+	// 特殊处理：DatabaseURL 虽然不带 password 字样，但也包含敏感信息
+	if strings.Contains(k, "databaseurl") || strings.Contains(k, "dsn") {
+		return true
+	}
+
+	return false
 }

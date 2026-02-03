@@ -21,6 +21,9 @@ func main() {
 	utils.InitLogger(&cfg.Log)
 	defer zap.L().Sync() // 刷新缓冲
 
+	// 打印已加载的配置（调试信息）
+	zap.L().Info("Configuration loaded", zap.Any("config", cfg.GetDebugConfig()))
+
 	// 初始化数据库连接（注入数据库配置）
 	if err := database.InitDB(&cfg.Database); err != nil {
 		zap.L().Fatal("Failed to connect to database", zap.Error(err))
