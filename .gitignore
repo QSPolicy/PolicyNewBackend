@@ -5,3 +5,4 @@
 logs
 /agent-cli
 config.local.yaml
+/research-cli
