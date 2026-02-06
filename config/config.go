@@ -34,14 +34,20 @@ type AppConfig struct {
 	// Log
 	LogLevel string `koanf:"log_level"`
 	LogFile  string `koanf:"log_file"`
+
+	// MeiliSearch
+	MeiliSearchURL string `koanf:"meilisearch_url"`
+	MeiliSearchKey string `koanf:"meilisearch_key"`
 }
 
 // Config 对外暴露的配置结构，包含各模块独立的配置
 type Config struct {
-	Server   ServerConfig
-	Database database.Config
-	Auth     auth.Config
-	Log      utils.LogConfig
+	Server         ServerConfig
+	Database       database.Config
+	Auth           auth.Config
+	Log            utils.LogConfig
+	MeiliSearchURL string
+	MeiliSearchKey string
 }
 
 // defaultAppConfig 聚合所有模块的默认配置
@@ -68,6 +74,10 @@ func defaultAppConfig() AppConfig {
 		// Log
 		LogLevel: logDef.LogLevel,
 		LogFile:  logDef.LogFile,
+
+		// MeiliSearch
+		MeiliSearchURL: "http://localhost:7700",
+		MeiliSearchKey: "",
 	}
 }
 
@@ -130,6 +140,8 @@ func LoadConfig() *Config {
 			LogLevel: app.LogLevel,
 			LogFile:  app.LogFile,
 		},
+		MeiliSearchURL: app.MeiliSearchURL,
+		MeiliSearchKey: app.MeiliSearchKey,
 	}
 }
 

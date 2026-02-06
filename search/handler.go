@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	meilisearch "github.com/meilisearch/meilisearch-go"
 	"gorm.io/gorm"
 )
 
@@ -19,13 +20,21 @@ import (
 type Handler struct {
 	db            *gorm.DB
 	pointsService *user.PointsTransactionService
+	meiliClient   interface{}
 }
 
 // NewHandler 创建新的搜索处理器
-func NewHandler(db *gorm.DB, pointsService *user.PointsTransactionService) *Handler {
+func NewHandler(db *gorm.DB, pointsService *user.PointsTransactionService, meiliURL string, meiliKey string) *Handler {
+	var meiliClient interface{}
+	if meiliURL != "" {
+		// 对于v0.36.0版本，只传递URL参数
+		meiliClient = meilisearch.New(meiliURL)
+	}
+
 	return &Handler{
 		db:            db,
 		pointsService: pointsService,
+		meiliClient:   meiliClient,
 	}
 }
 
@@ -410,4 +419,80 @@ func (h *Handler) CheckDuplication(c echo.Context) error {
 func (h *Handler) CleanupExpiredBuffers() (int64, error) {
 	result := h.db.Where("expire_at < ?", time.Now()).Delete(&SearchBuffer{})
 	return result.RowsAffected, result.Error
+}
+
+// LocalSearch 本地MeiliSearch检索
+// GET /api/search/local
+func (h *Handler) LocalSearch(c echo.Context) error {
+	var req SearchRequest
+	if err := c.Bind(&req); err != nil {
+		return utils.Fail(c, http.StatusBadRequest, "Invalid parameters")
+	}
+
+	if err := utils.ValidateRequest(c, &req); err != nil {
+		return err
+	}
+
+	// 获取当前用户
+	currentUser, ok := c.Get("user").(*user.User)
+	if !ok {
+		return utils.Fail(c, http.StatusUnauthorized, "User not authenticated")
+	}
+
+	// 检查MeiliSearch客户端是否初始化
+	if h.meiliClient == nil {
+		return utils.Fail(c, http.StatusServiceUnavailable, "MeiliSearch client not initialized")
+	}
+
+	// 执行搜索
+	indexName := "intelligences"
+	index := h.meiliClient.(interface {
+		Index(string) interface{}
+	}).Index(indexName)
+	response, err := index.(interface {
+		Search(string, int, int) (interface{}, error)
+	}).Search(req.Q, 50, 0)
+	if err != nil {
+		return utils.Error(c, http.StatusInternalServerError, "MeiliSearch search failed: "+err.Error())
+	}
+
+	// 转换搜索结果
+	responseMap := response.(map[string]interface{})
+	var hits []interface{}
+	if h, ok := responseMap["hits"].([]interface{}); ok {
+		hits = h
+	}
+
+	results := make([]map[string]interface{}, 0, len(hits))
+	for _, hit := range hits {
+		if hitMap, ok := hit.(map[string]interface{}); ok {
+			results = append(results, hitMap)
+		}
+	}
+
+	// 获取总命中数
+	totalHits := 0
+	if th, ok := responseMap["estimatedTotalHits"].(float64); ok {
+		totalHits = int(th)
+	}
+
+	// 记录搜索历史
+	history := SearchHistory{
+		UserID:      currentUser.ID,
+		Query:       req.Q,
+		Scope:       "local",
+		ModelType:   "meilisearch",
+		ResultCount: len(results),
+		CreatedAt:   time.Now(),
+	}
+	h.db.Create(&history)
+
+	return utils.Success(c, map[string]interface{}{
+		"query":      req.Q,
+		"scope":      "local",
+		"model":      "meilisearch",
+		"count":      len(results),
+		"total_hits": totalHits,
+		"results":    results,
+	})
 }

@@ -9,6 +9,7 @@ import (
 func RegisterRoutes(g *echo.Group, h *Handler) {
 	// 搜索相关接口
 	g.GET("/global", h.GlobalSearch)                 // 全网智能检索
+	g.GET("/local", h.LocalSearch)                   // 本地MeiliSearch检索
 	g.POST("/check-duplication", h.CheckDuplication) // 查重检测
 
 	// 缓冲区相关接口

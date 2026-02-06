@@ -2,6 +2,7 @@ package router
 
 import (
 	"policy-backend/auth"
+	"policy-backend/config"
 	"policy-backend/intelligence"
 	custommiddleware "policy-backend/middleware"
 	"policy-backend/org"
@@ -15,8 +16,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Init 初始化路由，使用auth模块的配置
-func Init(e *echo.Echo, db *gorm.DB, authCfg *auth.Config) {
+// Init 初始化路由，使用config模块的配置
+func Init(e *echo.Echo, db *gorm.DB, cfg *config.Config) {
 	// 1. 统一前缀
 	api := e.Group("/api")
 	api.Use(custommiddleware.ZapLogger()) // 使用自定义的 Zap 日志中间件
@@ -36,8 +37,8 @@ func Init(e *echo.Echo, db *gorm.DB, authCfg *auth.Config) {
 
 	// 3. 初始化JWT工具
 	jwtUtil := utils.NewJWTUtil(
-		authCfg.JWTSecretKey,
-		time.Duration(authCfg.JWTAccessTokenDuration)*time.Minute,
+		cfg.Auth.JWTSecretKey,
+		time.Duration(cfg.Auth.JWTAccessTokenDuration)*time.Minute,
 	)
 
 	// 4. 初始化认证中间件
@@ -45,7 +46,7 @@ func Init(e *echo.Echo, db *gorm.DB, authCfg *auth.Config) {
 
 	// 5. 初始化各模块并注册
 	// Auth 模块（不需要认证）
-	refreshTokenDuration := time.Duration(authCfg.JWTRefreshTokenDuration) * 24 * time.Hour
+	refreshTokenDuration := time.Duration(cfg.Auth.JWTRefreshTokenDuration) * 24 * time.Hour
 	authH := auth.NewHandler(db, jwtUtil, refreshTokenDuration)
 	auth.RegisterRoutes(api.Group("/auth"), authH)
 
@@ -59,7 +60,7 @@ func Init(e *echo.Echo, db *gorm.DB, authCfg *auth.Config) {
 	user.RegisterRoutes(userGroup, userH)
 
 	// Search 模块（需要认证）
-	searchH := search.NewHandler(db, pointsSvc)
+	searchH := search.NewHandler(db, pointsSvc, cfg.MeiliSearchURL, cfg.MeiliSearchKey)
 	searchGroup := api.Group("/search")
 	searchGroup.Use(authMiddleware)
 	search.RegisterRoutes(searchGroup, searchH)

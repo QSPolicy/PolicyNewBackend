@@ -38,7 +38,7 @@ func main() {
 	pointsSvc := user.NewPointsTransactionService(database.DB)
 
 	// 创建搜索处理器（用于定时任务）
-	searchH := search.NewHandler(database.DB, pointsSvc)
+	searchH := search.NewHandler(database.DB, pointsSvc, cfg.MeiliSearchURL, cfg.MeiliSearchKey)
 
 	// 启动定时任务
 	cronJob := cron.NewCronJob(database.DB, searchH)
@@ -48,8 +48,8 @@ func main() {
 	// 创建Echo实例
 	e := echo.New()
 
-	// 注册路由（注入认证配置）
-	router.Init(e, database.DB, &cfg.Auth)
+	// 注册路由（注入配置）
+	router.Init(e, database.DB, cfg)
 
 	// 启动服务器（使用服务器配置）
 	if err := e.Start(cfg.Server.ServerAddress); err != nil {
